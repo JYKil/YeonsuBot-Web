@@ -373,26 +373,25 @@ class BrowserSession:
             page.evaluate("search()")
             page.wait_for_timeout(2000)
 
-            # 4단계: 기관배정 팝업 모달 닫기 (표시되는 경우에만)
+            # 4단계: 기관배정 팝업 닫기 (jQuery UI Dialog)
             try:
-                close_btn = page.locator(".modal.show button.close, .modal.show .btn-close, .modal.show button:has-text('닫기')")
-                close_btn.first.click(timeout=3000)
+                page.locator("div[role='dialog'] button.btn-close").first.click(timeout=3000)
                 logger.info("[예약] 기관배정 팝업 닫기")
                 page.wait_for_timeout(1000)
             except PlaywrightTimeout:
                 logger.info("[예약] 기관배정 팝업 없음, 건너뜀")
 
-            # 5단계: 첫 번째 가용 객실 선택
+            # 5단계: 첫 번째 가용 객실 선택 (라디오 버튼 라벨 클릭)
             logger.info("[예약] 객실 선택")
-            room_btn = page.locator("button:has-text('객실선택'), a:has-text('객실선택'), button:has-text('선택')")
-            if room_btn.count() == 0:
-                raise BookingError("객실 선택 버튼을 찾을 수 없음")
-            room_btn.first.click()
+            room_label = page.locator("label[for^='termType']")
+            if room_label.count() == 0:
+                raise BookingError("객실 선택 라벨을 찾을 수 없음")
+            room_label.first.click()
             page.wait_for_timeout(1000)
 
-            # 6단계: "예약하기" 클릭 (dialog 핸들러는 이미 등록됨)
+            # 6단계: "예약하기" 클릭 (id="onlineprc")
             logger.info("[예약] '예약하기' 클릭")
-            book_btn = page.locator("button:has-text('예약하기'), a:has-text('예약하기')")
+            book_btn = page.locator("#onlineprc")
             if book_btn.count() == 0:
                 raise BookingError("'예약하기' 버튼을 찾을 수 없음")
             book_btn.first.click()

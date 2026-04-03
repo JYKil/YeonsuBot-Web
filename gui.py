@@ -80,6 +80,7 @@ class DatePicker(ctk.CTkFrame):
 
         def on_select(event=None):
             self._var.set(cal.get_date())
+            top.grab_release()
             top.destroy()
             self._popup = None
             if self._on_date_selected:
@@ -92,20 +93,16 @@ class DatePicker(ctk.CTkFrame):
         y = self._btn.winfo_rooty() + self._btn.winfo_height() + 2
         top.geometry(f"+{x}+{y}")
         top.focus_set()
+        top.grab_set()
 
-        def on_focus_out(event=None):
-            if not self._popup:
-                return
-            try:
-                focus_widget = top.focus_get()
-                if focus_widget and (focus_widget == top or str(focus_widget).startswith(str(top))):
-                    return
-            except KeyError:
-                pass
-            self._popup.destroy()
-            self._popup = None
+        def _close_popup(event=None):
+            if self._popup:
+                self._popup.grab_release()
+                self._popup.destroy()
+                self._popup = None
 
-        top.bind("<FocusOut>", on_focus_out)
+        top.bind("<Escape>", _close_popup)
+        top.protocol("WM_DELETE_WINDOW", _close_popup)
 
     def get_date(self) -> date:
         try:
@@ -157,8 +154,51 @@ class App(ctk.CTk):
         self._build_ui()
         self._setup_logging()
         self._load_settings_to_ui()
+        self._bind_clipboard()
 
         self.protocol("WM_DELETE_WINDOW", self._on_close)
+
+    def _bind_clipboard(self):
+        """macOS Cmd+C/V/A/X 클립보드 바인딩 (Tk 9.0 호환)
+
+        Tk 9.0에서 Command+키 조합의 keysym이 '??'로 인식되는
+        버그를 우회하기 위해 state(0x0008=Meta) + char로 직접 매칭한다.
+        """
+        def _on_key(event):
+            # 0x0008 = Meta(Command) modifier
+            if not (event.state & 0x0008):
+                return
+            ch = event.char.lower()
+            w = event.widget
+            # tkinter.Entry 또는 CTkEntry 내부 Entry만 처리
+            if not isinstance(w, tk.Entry):
+                return
+            if ch == "v":
+                try:
+                    text = self.clipboard_get()
+                except tk.TclError:
+                    return "break"
+                if w.select_present():
+                    w.delete("sel.first", "sel.last")
+                w.insert("insert", text)
+                return "break"
+            if ch == "c":
+                if w.select_present():
+                    self.clipboard_clear()
+                    self.clipboard_append(w.selection_get())
+                return "break"
+            if ch == "x":
+                if w.select_present():
+                    self.clipboard_clear()
+                    self.clipboard_append(w.selection_get())
+                    w.delete("sel.first", "sel.last")
+                return "break"
+            if ch == "a":
+                w.select_range(0, "end")
+                w.icursor("end")
+                return "break"
+
+        self.bind_all("<Key>", _on_key)
 
     def _build_ui(self):
         # 탭 뷰

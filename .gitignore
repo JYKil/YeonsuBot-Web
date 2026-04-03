@@ -1,0 +1,16 @@
+# 빌드 결과물
+build/
+dist/
+*.spec
+
+# Python 환경
+__pycache__/
+.venv/
+
+# Claude Code
+.claude/
+
+# 설정 및 환경 변수
+.env
+settings.json
+idPw.md

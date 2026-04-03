@@ -1,0 +1,7 @@
+requests>=2.31.0
+tkcalendar>=1.6.1
+playwright>=1.40.0
+customtkinter>=5.2.0
+
+# Windows EXE 빌드 시에만 필요
+pyinstaller>=6.0.0

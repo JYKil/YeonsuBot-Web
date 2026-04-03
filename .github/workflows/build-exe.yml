@@ -1,0 +1,46 @@
+name: Windows EXE 빌드
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 의존성 설치
+        run: |
+          pip install pyinstaller customtkinter tkcalendar playwright requests
+
+      - name: EXE 빌드
+        run: |
+          pyinstaller --noconfirm --onefile --windowed ^
+            --name "YeonsuBot" ^
+            --add-data "facilities.py;." ^
+            --collect-all customtkinter ^
+            --collect-all tkcalendar ^
+            --collect-all babel.locale_data ^
+            --hidden-import babel.numbers ^
+            main.py
+
+      - name: 빌드 결과 확인
+        run: dir dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: YeonsuBot-windows
+          path: dist/YeonsuBot.exe
+
+      - name: Release 업로드
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/YeonsuBot.exe

@@ -337,11 +337,11 @@ class BrowserSession:
             if date_btn.count() == 0:
                 raise BookingError(f"날짜 {target_date} 버튼을 찾을 수 없음")
             date_btn.first.click()
-            page.wait_for_timeout(1000)
+            page.wait_for_timeout(2000)
 
-            # 3단계: "선택일로 예약하기" 버튼 클릭
+            # 3단계: "선택일로 예약하기" 버튼 클릭 (button.btn_check → search() 호출)
             logger.info("[예약] '선택일로 예약하기' 클릭")
-            reserve_btn = page.locator("button:has-text('선택일로 예약하기'), a:has-text('선택일로 예약하기')")
+            reserve_btn = page.locator("button.btn_check")
             if reserve_btn.count() == 0:
                 raise BookingError("'선택일로 예약하기' 버튼을 찾을 수 없음")
             reserve_btn.first.click()

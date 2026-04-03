@@ -21,14 +21,15 @@ jobs:
           pip install pyinstaller customtkinter tkcalendar playwright requests
 
       - name: EXE 빌드
+        shell: bash
         run: |
-          pyinstaller --noconfirm --onefile --windowed ^
-            --name "YeonsuBot" ^
-            --add-data "facilities.py;." ^
-            --collect-all customtkinter ^
-            --collect-all tkcalendar ^
-            --collect-all babel.locale_data ^
-            --hidden-import babel.numbers ^
+          pyinstaller --noconfirm --onefile --windowed \
+            --name "YeonsuBot" \
+            --add-data "facilities.py;." \
+            --collect-all customtkinter \
+            --collect-all tkcalendar \
+            --collect-all babel.locale_data \
+            --hidden-import babel.numbers \
             main.py
 
       - name: 빌드 결과 확인

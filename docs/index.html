@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>연수원 자동 예약 - UI 와이어프레임</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Malgun Gothic', 'Segoe UI', sans-serif;
+    background: #1a1a2e;
+    color: #e0e0e0;
+    padding: 20px;
+    display: flex;
+    gap: 40px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .screen {
+    background: #16213e;
+    border-radius: 12px;
+    width: 480px;
+    border: 1px solid #0f3460;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  }
+  .screen-label {
+    text-align: center;
+    color: #888;
+    font-size: 12px;
+    margin-bottom: 8px;
+    letter-spacing: 1px;
+  }
+  /* 타이틀바 */
+  .titlebar {
+    background: #0f3460;
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .titlebar-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #e0e0e0;
+  }
+  .titlebar-ver {
+    font-size: 11px;
+    color: #7a7a9e;
+  }
+  .win-btns {
+    display: flex;
+    gap: 8px;
+  }
+  .win-btn {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: #333;
+  }
+  .win-btn.minimize { background: #e6b800; }
+  .win-btn.close { background: #e74c3c; }
+
+  /* 콘텐츠 */
+  .content { padding: 16px; }
+
+  /* 탭 */
+  .tabs {
+    display: flex;
+    gap: 2px;
+    margin-bottom: 16px;
+  }
+  .tab {
+    padding: 8px 20px;
+    border-radius: 8px 8px 0 0;
+    font-size: 13px;
+    cursor: pointer;
+    background: #1a1a3e;
+    color: #888;
+  }
+  .tab.active {
+    background: #1e3a5f;
+    color: #4fc3f7;
+    font-weight: 600;
+  }
+
+  /* 폼 */
+  .form-group {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  .form-label {
+    width: 90px;
+    font-size: 13px;
+    color: #aaa;
+    flex-shrink: 0;
+  }
+  .form-input {
+    flex: 1;
+    background: #1a1a3e;
+    border: 1px solid #2a2a5e;
+    border-radius: 6px;
+    padding: 8px 12px;
+    color: #e0e0e0;
+    font-size: 13px;
+  }
+  .form-input.short { width: 120px; flex: none; }
+  .form-select {
+    background: #1a1a3e;
+    border: 1px solid #2a2a5e;
+    border-radius: 6px;
+    padding: 8px 12px;
+    color: #e0e0e0;
+    font-size: 13px;
+    flex: 1;
+  }
+  .date-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex: 1;
+  }
+  .date-input {
+    background: #1a1a3e;
+    border: 1px solid #2a2a5e;
+    border-radius: 6px;
+    padding: 8px 10px;
+    color: #e0e0e0;
+    font-size: 13px;
+    width: 110px;
+  }
+  .date-arrow { color: #666; font-size: 14px; }
+
+  /* 상태 바 */
+  .status-bar {
+    background: #1a1a3e;
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin: 16px 0 12px 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid #2a2a5e;
+  }
+  .status-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: #666;
+  }
+  .status-dot.idle { background: #666; }
+  .status-dot.monitoring { background: #4caf50; animation: pulse 1.5s infinite; }
+  .status-dot.booking { background: #ff9800; animation: pulse 0.8s infinite; }
+  .status-dot.success { background: #4caf50; }
+  .status-text { font-size: 13px; }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* 버튼 */
+  .btn-row {
+    display: flex;
+    gap: 8px;
+    margin: 12px 0;
+  }
+  .btn {
+    padding: 10px 24px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+  }
+  .btn-primary { background: #4fc3f7; color: #1a1a2e; }
+  .btn-danger { background: #e74c3c; color: white; }
+  .btn-secondary { background: #2a2a5e; color: #aaa; }
+  .btn-small { padding: 6px 14px; font-size: 12px; }
+  .btn:disabled { opacity: 0.4; }
+
+  /* 로그 */
+  .log-area {
+    background: #0d1117;
+    border: 1px solid #2a2a5e;
+    border-radius: 8px;
+    padding: 10px;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 11px;
+    line-height: 1.6;
+    height: 140px;
+    overflow-y: auto;
+    color: #8b949e;
+  }
+  .log-time { color: #555; }
+  .log-info { color: #58a6ff; }
+  .log-success { color: #3fb950; }
+  .log-warn { color: #d29922; }
+  .log-error { color: #f85149; }
+
+  /* 진행 단계 */
+  .progress-steps {
+    display: flex;
+    gap: 4px;
+    margin: 8px 0;
+    padding: 8px 0;
+  }
+  .step {
+    flex: 1;
+    height: 4px;
+    border-radius: 2px;
+    background: #2a2a5e;
+  }
+  .step.done { background: #4caf50; }
+  .step.active { background: #ff9800; animation: pulse 0.8s infinite; }
+  .step-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: #666;
+    margin-bottom: 8px;
+  }
+</style>
+</head>
+<body>
+
+<!-- 화면 1: 대기 상태 -->
+<div>
+  <div class="screen-label">STATE: 대기 중</div>
+  <div class="screen">
+    <div class="titlebar">
+      <div>
+        <div class="titlebar-title">서울특별시 연수원 자동 예약</div>
+        <div class="titlebar-ver">v3.0</div>
+      </div>
+      <div class="win-btns">
+        <div class="win-btn minimize"></div>
+        <div class="win-btn close"></div>
+      </div>
+    </div>
+    <div class="content">
+      <div class="tabs">
+        <div class="tab active">설정</div>
+        <div class="tab">안내</div>
+      </div>
+
+      <div class="form-group">
+        <span class="form-label">아이디</span>
+        <input class="form-input" value="user123" readonly>
+      </div>
+      <div class="form-group">
+        <span class="form-label">비밀번호</span>
+        <input class="form-input" type="password" value="password" readonly>
+      </div>
+      <div class="form-group">
+        <span class="form-label">연수원</span>
+        <select class="form-select"><option>속초수련원</option></select>
+      </div>
+      <div class="form-group">
+        <span class="form-label">체크인/아웃</span>
+        <div class="date-row">
+          <input class="date-input" value="2026-04-10" readonly>
+          <span class="date-arrow">→</span>
+          <input class="date-input" value="2026-04-11" readonly>
+        </div>
+      </div>
+      <div class="form-group">
+        <span class="form-label">확인 간격</span>
+        <input class="form-input short" value="60초" readonly>
+      </div>
+
+      <div class="status-bar">
+        <div class="status-dot idle"></div>
+        <span class="status-text" style="color:#888">대기 중</span>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-primary">시작</button>
+        <button class="btn btn-secondary" disabled>중지</button>
+        <div style="flex:1"></div>
+        <button class="btn btn-secondary btn-small">Slack 테스트</button>
+        <button class="btn btn-secondary btn-small">로그 지우기</button>
+      </div>
+
+      <div class="log-area">
+        <div><span class="log-time">--:--:--</span> 시작 버튼을 눌러주세요.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 화면 2: 모니터링 중 -->
+<div>
+  <div class="screen-label">STATE: 모니터링 중</div>
+  <div class="screen">
+    <div class="titlebar">
+      <div>
+        <div class="titlebar-title">서울특별시 연수원 자동 예약</div>
+        <div class="titlebar-ver">v3.0</div>
+      </div>
+      <div class="win-btns">
+        <div class="win-btn minimize"></div>
+        <div class="win-btn close"></div>
+      </div>
+    </div>
+    <div class="content">
+      <div class="tabs">
+        <div class="tab active">설정</div>
+        <div class="tab">안내</div>
+      </div>
+
+      <div class="form-group">
+        <span class="form-label">아이디</span>
+        <input class="form-input" value="user123" readonly style="opacity:0.5">
+      </div>
+      <div class="form-group">
+        <span class="form-label">비밀번호</span>
+        <input class="form-input" type="password" value="password" readonly style="opacity:0.5">
+      </div>
+      <div class="form-group">
+        <span class="form-label">연수원</span>
+        <select class="form-select" style="opacity:0.5"><option>속초수련원</option></select>
+      </div>
+      <div class="form-group">
+        <span class="form-label">체크인/아웃</span>
+        <div class="date-row" style="opacity:0.5">
+          <input class="date-input" value="2026-04-10" readonly>
+          <span class="date-arrow">→</span>
+          <input class="date-input" value="2026-04-11" readonly>
+        </div>
+      </div>
+      <div class="form-group">
+        <span class="form-label">확인 간격</span>
+        <input class="form-input short" value="60초" readonly style="opacity:0.5">
+      </div>
+
+      <div class="status-bar" style="border-color:#2e7d32">
+        <div class="status-dot monitoring"></div>
+        <span class="status-text" style="color:#4caf50">모니터링 중 · 3회 확인 완료</span>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" disabled>시작</button>
+        <button class="btn btn-danger">중지</button>
+        <div style="flex:1"></div>
+        <button class="btn btn-secondary btn-small">Slack 테스트</button>
+        <button class="btn btn-secondary btn-small">로그 지우기</button>
+      </div>
+
+      <div class="log-area">
+        <div><span class="log-time">20:15:03</span> <span class="log-info">[INFO]</span> 로그인 성공, 3초 대기...</div>
+        <div><span class="log-time">20:15:06</span> <span class="log-info">[INFO]</span> 연수원 '속초수련원' 선택</div>
+        <div><span class="log-time">20:15:09</span> <span class="log-info">[INFO]</span> 달력 결과: 불가 [20260410], 가능 []</div>
+        <div><span class="log-time">20:15:09</span> <span class="log-info">[INFO]</span> [속초수련원] 예약 가능 날짜 없음</div>
+        <div><span class="log-time">20:16:09</span> <span class="log-info">[INFO]</span> 달력 결과: 불가 [20260410], 가능 []</div>
+        <div><span class="log-time">20:17:09</span> <span class="log-info">[INFO]</span> 달력 결과: 불가 [20260410], 가능 []</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 화면 3: 예약 진행 중 -->
+<div>
+  <div class="screen-label">STATE: 예약 진행 중</div>
+  <div class="screen">
+    <div class="titlebar">
+      <div>
+        <div class="titlebar-title">서울특별시 연수원 자동 예약</div>
+        <div class="titlebar-ver">v3.0</div>
+      </div>
+      <div class="win-btns">
+        <div class="win-btn minimize"></div>
+        <div class="win-btn close"></div>
+      </div>
+    </div>
+    <div class="content">
+      <div class="tabs">
+        <div class="tab active">설정</div>
+        <div class="tab">안내</div>
+      </div>
+
+      <div class="form-group" style="opacity:0.3">
+        <span class="form-label">아이디</span>
+        <input class="form-input" value="user123" readonly>
+      </div>
+      <div class="form-group" style="opacity:0.3">
+        <span class="form-label">비밀번호</span>
+        <input class="form-input" type="password" value="password" readonly>
+      </div>
+      <div class="form-group" style="opacity:0.3">
+        <span class="form-label">연수원</span>
+        <select class="form-select"><option>속초수련원</option></select>
+      </div>
+      <div class="form-group" style="opacity:0.3">
+        <span class="form-label">체크인/아웃</span>
+        <div class="date-row">
+          <input class="date-input" value="2026-04-10" readonly>
+          <span class="date-arrow">→</span>
+          <input class="date-input" value="2026-04-11" readonly>
+        </div>
+      </div>
+      <div class="form-group" style="opacity:0.3">
+        <span class="form-label">확인 간격</span>
+        <input class="form-input short" value="60초" readonly>
+      </div>
+
+      <div class="status-bar" style="border-color:#e65100">
+        <div class="status-dot booking"></div>
+        <span class="status-text" style="color:#ff9800">예약 진행 중 · 객실 선택</span>
+      </div>
+
+      <!-- 진행 바 -->
+      <div class="step-labels">
+        <span>날짜선택</span>
+        <span>예약하기</span>
+        <span>모달닫기</span>
+        <span>객실선택</span>
+        <span>예약확인</span>
+        <span>완료</span>
+      </div>
+      <div class="progress-steps">
+        <div class="step done"></div>
+        <div class="step done"></div>
+        <div class="step done"></div>
+        <div class="step active"></div>
+        <div class="step"></div>
+        <div class="step"></div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" disabled>시작</button>
+        <button class="btn btn-danger" disabled>중지</button>
+        <div style="flex:1"></div>
+        <button class="btn btn-secondary btn-small" disabled>Slack 테스트</button>
+        <button class="btn btn-secondary btn-small">로그 지우기</button>
+      </div>
+
+      <div class="log-area">
+        <div><span class="log-time">20:18:09</span> <span class="log-success">[INFO]</span> <span style="color:#3fb950">빈방 발견! 04-10 예약 시도...</span></div>
+        <div><span class="log-time">20:18:10</span> <span class="log-info">[BOOK]</span> 날짜 클릭: 20260410</div>
+        <div><span class="log-time">20:18:11</span> <span class="log-info">[BOOK]</span> "선택일로 예약하기" 클릭</div>
+        <div><span class="log-time">20:18:12</span> <span class="log-info">[BOOK]</span> 기관배정 팝업 닫기</div>
+        <div><span class="log-time">20:18:13</span> <span class="log-warn">[BOOK]</span> 객실 선택 중...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 화면 4: 예약 완료 -->
+<div>
+  <div class="screen-label">STATE: 예약 완료</div>
+  <div class="screen">
+    <div class="titlebar">
+      <div>
+        <div class="titlebar-title">서울특별시 연수원 자동 예약</div>
+        <div class="titlebar-ver">v3.0</div>
+      </div>
+      <div class="win-btns">
+        <div class="win-btn minimize"></div>
+        <div class="win-btn close"></div>
+      </div>
+    </div>
+    <div class="content">
+      <div class="tabs">
+        <div class="tab active">설정</div>
+        <div class="tab">안내</div>
+      </div>
+
+      <div class="form-group" style="opacity:0.3">
+        <span class="form-label">아이디</span>
+        <input class="form-input" value="user123" readonly>
+      </div>
+      <div class="form-group" style="opacity:0.3">
+        <span class="form-label">비밀번호</span>
+        <input class="form-input" type="password" value="password" readonly>
+      </div>
+      <div class="form-group" style="opacity:0.3">
+        <span class="form-label">연수원</span>
+        <select class="form-select"><option>속초수련원</option></select>
+      </div>
+      <div class="form-group" style="opacity:0.3">
+        <span class="form-label">체크인/아웃</span>
+        <div class="date-row">
+          <input class="date-input" value="2026-04-10" readonly>
+          <span class="date-arrow">→</span>
+          <input class="date-input" value="2026-04-11" readonly>
+        </div>
+      </div>
+      <div class="form-group" style="opacity:0.3">
+        <span class="form-label">확인 간격</span>
+        <input class="form-input short" value="60초" readonly>
+      </div>
+
+      <div class="status-bar" style="border-color:#2e7d32; background:#0d2818">
+        <div class="status-dot success"></div>
+        <span class="status-text" style="color:#4caf50; font-weight:600">예약 완료! 속초수련원 04-10</span>
+      </div>
+
+      <div class="step-labels">
+        <span>날짜선택</span>
+        <span>예약하기</span>
+        <span>모달닫기</span>
+        <span>객실선택</span>
+        <span>예약확인</span>
+        <span style="color:#4caf50; font-weight:bold">완료</span>
+      </div>
+      <div class="progress-steps">
+        <div class="step done"></div>
+        <div class="step done"></div>
+        <div class="step done"></div>
+        <div class="step done"></div>
+        <div class="step done"></div>
+        <div class="step done"></div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-primary">다시 시작</button>
+        <button class="btn btn-secondary" disabled>중지</button>
+        <div style="flex:1"></div>
+        <button class="btn btn-secondary btn-small">Slack 테스트</button>
+        <button class="btn btn-secondary btn-small">로그 지우기</button>
+      </div>
+
+      <div class="log-area">
+        <div><span class="log-time">20:18:09</span> <span class="log-success">[INFO]</span> <span style="color:#3fb950">빈방 발견! 04-10 예약 시도...</span></div>
+        <div><span class="log-time">20:18:10</span> <span class="log-info">[BOOK]</span> 날짜 클릭: 20260410</div>
+        <div><span class="log-time">20:18:11</span> <span class="log-info">[BOOK]</span> "선택일로 예약하기" 클릭</div>
+        <div><span class="log-time">20:18:12</span> <span class="log-info">[BOOK]</span> 기관배정 팝업 닫기</div>
+        <div><span class="log-time">20:18:13</span> <span class="log-info">[BOOK]</span> 객실 선택 완료</div>
+        <div><span class="log-time">20:18:14</span> <span class="log-info">[BOOK]</span> 예약하기 클릭 → confirm 확인</div>
+        <div><span class="log-time">20:18:15</span> <span class="log-success">[BOOK]</span> <span style="color:#3fb950; font-weight:bold">예약 성공! Slack 알림 전송 완료</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

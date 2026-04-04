@@ -20,6 +20,12 @@ from scheduler import MonitorScheduler, BookingResult
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
 
+# 통일 서체
+FONT_FAMILY = "맑은 고딕"
+FONT = (FONT_FAMILY, 13)
+FONT_SMALL = (FONT_FAMILY, 12)
+FONT_LOG = ("맑은 고딕", 12)
+
 # 상태별 색상
 STATUS_COLORS = {
     "대기 중": "#888888",
@@ -41,9 +47,9 @@ class DatePicker(ctk.CTkFrame):
         self._popup = None
         self._on_date_selected = on_date_selected
 
-        self._entry = ctk.CTkEntry(self, textvariable=self._var, width=120, state="readonly")
+        self._entry = ctk.CTkEntry(self, textvariable=self._var, width=120, state="readonly", font=FONT)
         self._entry.pack(side="left")
-        self._btn = ctk.CTkButton(self, text="▼", width=30, command=self._toggle)
+        self._btn = ctk.CTkButton(self, text="▼", width=30, command=self._toggle, font=FONT)
         self._btn.pack(side="left", padx=(4, 0))
 
         self.set_date(date.today())
@@ -76,6 +82,7 @@ class DatePicker(ctk.CTkFrame):
             year=current.year,
             month=current.month,
             day=current.day,
+            font=(FONT_FAMILY, 12),
         )
         cal.pack(padx=4, pady=4)
 
@@ -229,6 +236,11 @@ class App(ctk.CTk):
         self._tabview.pack(fill="x", padx=10, pady=(10, 5))
         self._tabview.add("설정")
         self._tabview.add("안내")
+        # 탭 버튼 서체 통일 (private API — CustomTkinter 업데이트 시 변경 가능)
+        try:
+            self._tabview._segmented_button.configure(font=FONT)
+        except AttributeError:
+            pass
 
         self._build_settings_tab()
         self._build_about_tab()
@@ -240,29 +252,29 @@ class App(ctk.CTk):
         frame = self._tabview.tab("설정")
 
         # 아이디
-        ctk.CTkLabel(frame, text="아이디").grid(row=0, column=0, sticky="w", padx=10, pady=6)
+        ctk.CTkLabel(frame, text="아이디", font=FONT).grid(row=0, column=0, sticky="w", padx=10, pady=6)
         self._username_var = tk.StringVar()
-        ctk.CTkEntry(frame, textvariable=self._username_var, width=200).grid(
+        ctk.CTkEntry(frame, textvariable=self._username_var, width=200, font=FONT).grid(
             row=0, column=1, sticky="w", padx=10, pady=6
         )
 
         # 비밀번호
-        ctk.CTkLabel(frame, text="비밀번호").grid(row=1, column=0, sticky="w", padx=10, pady=6)
+        ctk.CTkLabel(frame, text="비밀번호", font=FONT).grid(row=1, column=0, sticky="w", padx=10, pady=6)
         pw_frame = ctk.CTkFrame(frame, fg_color="transparent")
         pw_frame.grid(row=1, column=1, sticky="w", padx=10, pady=6)
 
         self._password_var = tk.StringVar()
-        self._pw_entry = ctk.CTkEntry(pw_frame, textvariable=self._password_var, width=200, show="*")
+        self._pw_entry = ctk.CTkEntry(pw_frame, textvariable=self._password_var, width=200, show="*", font=FONT)
         self._pw_entry.pack(side="left")
 
         self._pw_show_var = tk.BooleanVar(value=False)
         ctk.CTkCheckBox(
             pw_frame, text="보기", variable=self._pw_show_var,
-            command=self._toggle_pw_visibility, width=50,
+            command=self._toggle_pw_visibility, width=50, font=FONT,
         ).pack(side="left", padx=(8, 0))
 
         # 연수원
-        ctk.CTkLabel(frame, text="연수원").grid(row=2, column=0, sticky="w", padx=10, pady=6)
+        ctk.CTkLabel(frame, text="연수원", font=FONT).grid(row=2, column=0, sticky="w", padx=10, pady=6)
         self._facility_var = tk.StringVar()
         ctk.CTkComboBox(
             frame,
@@ -270,22 +282,24 @@ class App(ctk.CTk):
             values=get_facility_names(),
             width=200,
             state="readonly",
+            font=FONT,
+            dropdown_font=FONT,
         ).grid(row=2, column=1, sticky="w", padx=10, pady=6)
 
         # 체크인
-        ctk.CTkLabel(frame, text="체크인").grid(row=3, column=0, sticky="w", padx=10, pady=6)
+        ctk.CTkLabel(frame, text="체크인", font=FONT).grid(row=3, column=0, sticky="w", padx=10, pady=6)
         self._checkin_entry = DatePicker(frame, on_date_selected=self._on_checkin_selected, fg_color="transparent")
         self._checkin_entry.grid(row=3, column=1, sticky="w", padx=10, pady=6)
 
         # 체크아웃
-        ctk.CTkLabel(frame, text="체크아웃").grid(row=4, column=0, sticky="w", padx=10, pady=6)
+        ctk.CTkLabel(frame, text="체크아웃", font=FONT).grid(row=4, column=0, sticky="w", padx=10, pady=6)
         self._checkout_entry = DatePicker(frame, fg_color="transparent")
         self._checkout_entry.grid(row=4, column=1, sticky="w", padx=10, pady=6)
 
         # 확인 간격
-        ctk.CTkLabel(frame, text="확인 간격 (초)").grid(row=5, column=0, sticky="w", padx=10, pady=6)
+        ctk.CTkLabel(frame, text="확인 간격 (초)", font=FONT).grid(row=5, column=0, sticky="w", padx=10, pady=6)
         self._interval_var = tk.IntVar(value=60)
-        ctk.CTkEntry(frame, textvariable=self._interval_var, width=80).grid(
+        ctk.CTkEntry(frame, textvariable=self._interval_var, width=80, font=FONT).grid(
             row=5, column=1, sticky="w", padx=10, pady=6
         )
 
@@ -309,12 +323,9 @@ class App(ctk.CTk):
             "1. '설정' 탭에서 아이디, 비밀번호, 연수원, 체크인/체크아웃, 확인간격을 설정\n"
             "2. [시작] 버튼을 누르면 자동으로 모니터링 + 예약 진행\n"
             "3. 예약 완료 시 Slack으로 알림을 보내고 자동 정지\n"
-            "4. 예약 실패 시 Slack 알림 후 모니터링 계속\n\n"
-            "[알림]\n"
-            "- 2026-06-02 이후 GitHub Actions 빌드가 깨질 수 있음\n"
-            "  → actions/checkout, setup-python을 Node.js 24 지원 버전으로 업그레이드 필요"
+            "4. 예약 실패 시 Slack 알림 후 모니터링 계속"
         )
-        ctk.CTkLabel(frame, text=info_text, justify="left", wraplength=450, anchor="nw").pack(
+        ctk.CTkLabel(frame, text=info_text, justify="left", wraplength=450, anchor="nw", font=FONT_SMALL).pack(
             fill="both", expand=True, padx=12, pady=12
         )
 
@@ -323,10 +334,10 @@ class App(ctk.CTk):
         self._status_frame = ctk.CTkFrame(self)
         self._status_frame.pack(fill="x", padx=10, pady=(0, 5))
 
-        self._status_dot = ctk.CTkLabel(self._status_frame, text="●", font=("", 14))
+        self._status_dot = ctk.CTkLabel(self._status_frame, text="●", font=(FONT_FAMILY, 14))
         self._status_dot.pack(side="left", padx=(10, 6))
 
-        self._status_label = ctk.CTkLabel(self._status_frame, text="대기 중", font=("", 13))
+        self._status_label = ctk.CTkLabel(self._status_frame, text="대기 중", font=FONT)
         self._status_label.pack(side="left")
 
         self._update_status_display("대기 중")
@@ -335,27 +346,27 @@ class App(ctk.CTk):
         frame = ctk.CTkFrame(self, fg_color="transparent")
         frame.pack(fill="x", padx=10, pady=(0, 5))
 
-        self._start_btn = ctk.CTkButton(frame, text="시작", command=self._on_start, width=90)
+        self._start_btn = ctk.CTkButton(frame, text="시작", command=self._on_start, width=90, font=FONT)
         self._start_btn.pack(side="left", padx=4)
 
         self._stop_btn = ctk.CTkButton(
             frame, text="중지", command=self._on_stop, width=90,
-            fg_color="#E74C3C", hover_color="#C0392B", state="disabled",
+            fg_color="#E74C3C", hover_color="#C0392B", state="disabled", font=FONT,
         )
         self._stop_btn.pack(side="left", padx=4)
 
         ctk.CTkButton(
             frame, text="로그 지우기", command=self._clear_log, width=90,
-            fg_color="gray30", hover_color="gray40",
+            fg_color="gray30", hover_color="gray40", font=FONT,
         ).pack(side="right", padx=4)
 
         ctk.CTkButton(
             frame, text="Slack 테스트", command=self._test_slack, width=100,
-            fg_color="gray30", hover_color="gray40",
+            fg_color="gray30", hover_color="gray40", font=FONT,
         ).pack(side="right", padx=4)
 
     def _build_log_area(self):
-        self._log_text = ctk.CTkTextbox(self, state="disabled", font=("Consolas", 12))
+        self._log_text = ctk.CTkTextbox(self, state="disabled", font=FONT_LOG)
         self._log_text.pack(fill="both", expand=True, padx=10, pady=(0, 10))
 
     def _clear_log(self):

@@ -158,7 +158,16 @@ class BrowserSession:
         logger.info("로그인 중...")
         page = self._context.new_page()
         try:
-            page.goto(BASE_URL, wait_until="domcontentloaded", timeout=15000)
+            # goto 타임아웃 시 1회 재시도 (공공 사이트 응답 지연 대응)
+            try:
+                page.goto(BASE_URL, wait_until="domcontentloaded", timeout=30000)
+            except PlaywrightTimeout:
+                logger.warning("로그인 페이지 로드 타임아웃, 5초 후 재시도...")
+                page.close()
+                import time as _time
+                _time.sleep(5)
+                page = self._context.new_page()
+                page.goto(BASE_URL, wait_until="domcontentloaded", timeout=30000)
             resp = page.request.post(
                 LOGIN_URL,
                 form={"mbmr_id": self._username, "mbmr_pwd": self._password},

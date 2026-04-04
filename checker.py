@@ -143,7 +143,7 @@ class BrowserSession:
 
         self._pw = sync_playwright().start()
         channel = _detect_browser_channel()
-        self._browser = self._pw.chromium.launch(headless=False, channel=channel)
+        self._browser = self._pw.chromium.launch(headless=True, channel=channel)
         self._context = self._browser.new_context(
             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
         )
@@ -208,7 +208,18 @@ class BrowserSession:
         try:
             page = self._context.new_page()
             url = f"{ONLINE_RSV_URL}?ser_yeonsu_gbn={yeonsu_gbn}"
-            page.goto(url, wait_until="domcontentloaded", timeout=30000)
+
+            # goto 타임아웃 시 1회 재시도 (연속 요청 시 사이트 응답 지연 대응)
+            try:
+                page.goto(url, wait_until="domcontentloaded", timeout=30000)
+            except PlaywrightTimeout:
+                logger.warning("페이지 로드 타임아웃, 5초 후 재시도...")
+                page.close()
+                page = None
+                import time as _time
+                _time.sleep(5)
+                page = self._context.new_page()
+                page.goto(url, wait_until="domcontentloaded", timeout=30000)
 
             # 세션 만료 확인 → 재로그인
             if "login" in page.url.lower():
@@ -308,6 +319,14 @@ class BrowserSession:
             url = f"{ONLINE_RSV_URL}?ser_yeonsu_gbn={yeonsu_gbn}"
             page.goto(url, wait_until="domcontentloaded", timeout=30000)
 
+            # RESAGREE 쿠키 설정 (예약안내 팝업 건너뛰기, 1차 방어)
+            self._context.add_cookies([{
+                "name": "RESAGREE",
+                "value": "Y",
+                "domain": "yeonsu.eseoul.go.kr",
+                "path": "/",
+            }])
+
             # 세션 만료 확인
             if "login" in page.url.lower():
                 logger.warning("예약 시도 중 세션 만료, 재로그인...")
@@ -316,12 +335,19 @@ class BrowserSession:
                 self._do_login()
                 page = self._context.new_page()
                 page.goto(url, wait_until="domcontentloaded", timeout=30000)
+                # 재로그인 후에도 쿠키 재설정
+                self._context.add_cookies([{
+                    "name": "RESAGREE",
+                    "value": "Y",
+                    "domain": "yeonsu.eseoul.go.kr",
+                    "path": "/",
+                }])
 
             # dialog 핸들러 등록 (자동 체크아웃 alert 등 대응)
             dialog_results = []
 
             def handle_dialog(dialog):
-                logger.info("[예약] dialog: type=%s, message=%s", dialog.type, dialog.message)
+                logger.debug("[예약] dialog: type=%s, message=%s", dialog.type, dialog.message)
                 dialog_results.append({"type": dialog.type, "message": dialog.message})
                 dialog.accept()
 
@@ -329,7 +355,6 @@ class BrowserSession:
 
             # 1단계: 연수원 선택
             facility_name = get_facility_name(yeonsu_gbn)
-            logger.info("[예약] 연수원 '%s' 선택", facility_name)
             actual_code = page.evaluate(
                 """(name) => {
                     const sel = document.getElementById('ser_yeonsu_gbn');
@@ -359,7 +384,6 @@ class BrowserSession:
             _random_delay(page, 3000, 1500)
 
             checkin_fmt = f"{checkin_date[:4]}.{checkin_date[4:6]}.{checkin_date[6:]}"
-            logger.info("[예약] 체크인 클릭: %s", checkin_date)
             checkin_btn = page.locator(f'td.targetDate[data-date="{checkin_fmt}"] button')
             if checkin_btn.count() == 0:
                 raise BookingError(f"체크인 날짜 {checkin_date} 버튼을 찾을 수 없음")
@@ -369,52 +393,102 @@ class BrowserSession:
             # 체크아웃 날짜 클릭 (1박이면 자동 설정 alert → dialog 핸들러가 수락)
             if len(target_dates) > 1:
                 checkout_fmt = f"{checkout_date[:4]}.{checkout_date[4:6]}.{checkout_date[6:]}"
-                logger.info("[예약] 체크아웃 클릭: %s", checkout_date)
                 checkout_btn = page.locator(f'td.targetDate[data-date="{checkout_fmt}"] button')
                 if checkout_btn.count() == 0:
                     raise BookingError(f"체크아웃 날짜 {checkout_date} 버튼을 찾을 수 없음")
                 checkout_btn.first.click()
                 _random_delay(page, 2000, 1000)
             else:
-                logger.info("[예약] 1박 — 체크아웃 자동 설정 대기")
                 _random_delay(page, 1500, 500)
 
             # 3단계: search() 직접 호출 (선택일로 예약하기)
-            logger.info("[예약] search() 호출 (선택일로 예약하기)")
             page.evaluate("search()")
             _random_delay(page, 2500, 1000)
 
             # 4단계: 기관배정 팝업 닫기 (jQuery UI Dialog)
             try:
                 page.locator("div[role='dialog'] button.btn-close").first.click(timeout=3000)
-                logger.info("[예약] 기관배정 팝업 닫기")
                 _random_delay(page, 1500, 500)
             except PlaywrightTimeout:
-                logger.info("[예약] 기관배정 팝업 없음, 건너뜀")
+                pass
 
-            # 5단계: 첫 번째 가용 객실 선택 (라디오 버튼 라벨 클릭)
-            logger.info("[예약] 객실 선택")
+            # 5단계: 첫 번째 가용 객실 선택
             room_label = page.locator("label[for^='termType']")
             if room_label.count() == 0:
                 raise BookingError("객실 선택 라벨을 찾을 수 없음")
             room_label.first.click()
             _random_delay(page, 1500, 500)
 
-            # 6단계: "예약하기" 클릭 (id="onlineprc")
-            logger.info("[예약] '예약하기' 클릭")
+            # 5.5단계: 인원수 설정 (미설정 시 서버가 예약 즉시 취소)
+            page.evaluate("document.getElementById('peple_num').value = '1'")
+
+            # 6단계: "예약하기" 클릭
+            logger.info("[예약] 객실 선택 완료, 예약 제출 중...")
             book_btn = page.locator("#onlineprc")
             if book_btn.count() == 0:
                 raise BookingError("'예약하기' 버튼을 찾을 수 없음")
-            book_btn.first.click()
-            _random_delay(page, 3000, 1500)
 
-            # 7단계: confirm + alert 처리 (dialog 핸들러가 자동으로 accept)
-            # dialog_results에 confirm, alert 순서로 쌓임
+            # 폼 제출로 인한 페이지 이동 감지
+            navigated = False
+            pre_click_url = page.url
+            try:
+                with page.expect_navigation(timeout=15000):
+                    book_btn.first.click()
+                navigated = True
+            except PlaywrightTimeout:
+                logger.warning("[예약] 페이지 이동 없음 (타임아웃)")
 
-            # 8단계: dialog 결과 검증 + 분기 처리
             _random_delay(page, 2000, 1000)
 
-            # dialog 메시지에서 실패 키워드 확인
+            # 7단계: 결과 판단
+            current_url = page.url
+
+            if navigated and current_url != pre_click_url:
+                # 페이지가 이동됨 — 이동 후 내용으로 판단
+                try:
+                    page_text = page.inner_text("body")[:500]
+                except Exception:
+                    page_text = ""
+
+                # 실패 키워드 확인 (이동된 페이지에서)
+                fail_keywords = ["실패", "불가", "마감", "초과", "오류", "에러"]
+                for kw in fail_keywords:
+                    if kw in page_text:
+                        raise BookingError(f"예약 실패 (페이지 응답): {kw}")
+
+                # 예약안내 페이지 감지 (2차 폴백 — RESAGREE 쿠키 미동작 시)
+                if "agree" in current_url.lower() or "약관" in page_text:
+                    try:
+                        agree_all = page.locator(
+                            "input[type='checkbox']#allAgree, "
+                            "input[type='checkbox']:has-text('일괄'), "
+                            "label:has-text('일괄동의'), "
+                            "label:has-text('전체동의')"
+                        )
+                        if agree_all.count() > 0:
+                            agree_all.first.click()
+                            _random_delay(page, 500, 300)
+                        else:
+                            checkboxes = page.locator("input[type='checkbox']")
+                            for i in range(checkboxes.count()):
+                                if not checkboxes.nth(i).is_checked():
+                                    checkboxes.nth(i).click()
+                                    _random_delay(page, 300, 200)
+
+                        confirm_btn = page.locator(
+                            "button:has-text('확인'), "
+                            "button:has-text('동의'), "
+                            "a:has-text('확인')"
+                        )
+                        if confirm_btn.count() > 0:
+                            confirm_btn.first.click()
+                            _random_delay(page, 2000, 1000)
+                    except Exception as exc:
+                        logger.warning("[예약] 일괄동의 처리 중 오류: %s", exc)
+
+                return True
+
+            # 페이지 이동 없음 — dialog 기반 폴백 판단
             fail_keywords = ["실패", "불가", "마감", "초과", "오류", "에러", "없습니다"]
             for dr in dialog_results:
                 msg = dr.get("message", "")
@@ -422,40 +496,9 @@ class BrowserSession:
                     if kw in msg:
                         raise BookingError(f"예약 실패 (서버 응답): {msg}")
 
-            # 예약안내 페이지 감지 (첫 예약 시)
-            current_url = page.url.lower()
-
-            if "agree" in current_url or "약관" in page.content()[:500]:
-                # 첫 예약: 예약안내 페이지
-                logger.info("[예약] 예약안내 페이지 감지, 일괄동의 진행")
-                try:
-                    # 일괄동의 체크박스 클릭
-                    agree_all = page.locator("input[type='checkbox']#allAgree, input[type='checkbox']:has-text('일괄'), label:has-text('일괄동의'), label:has-text('전체동의')")
-                    if agree_all.count() > 0:
-                        agree_all.first.click()
-                        _random_delay(page, 500, 300)
-                    else:
-                        # 개별 체크박스 모두 클릭
-                        checkboxes = page.locator("input[type='checkbox']")
-                        for i in range(checkboxes.count()):
-                            if not checkboxes.nth(i).is_checked():
-                                checkboxes.nth(i).click()
-                                _random_delay(page, 300, 200)
-
-                    # 확인 버튼 클릭
-                    confirm_btn = page.locator("button:has-text('확인'), button:has-text('동의'), a:has-text('확인')")
-                    if confirm_btn.count() > 0:
-                        confirm_btn.first.click()
-                        _random_delay(page, 2000, 1000)
-                    logger.info("[예약] 일괄동의 완료")
-                except Exception as exc:
-                    logger.warning("[예약] 일괄동의 처리 중 오류: %s", exc)
-
-            # dialog가 하나도 안 왔으면 의심스러움
             if not dialog_results:
-                logger.warning("[예약] dialog 응답 없음, 예약 성공 여부 불확실")
+                logger.warning("[예약] 예약 성공 여부 불확실 (응답 없음)")
 
-            logger.info("[예약] 예약 완료!")
             return True
 
         except BookingError:

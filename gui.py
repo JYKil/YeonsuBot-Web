@@ -517,12 +517,6 @@ class App(ctk.CTk):
                 )
             elif result == BookingResult.FAILED:
                 self._update_status_display("모니터링 중")
-                notifier.send_booking_failure(
-                    SLACK_WEBHOOK_URL,
-                    facility_name, detail,
-                    reason="예약 재시도 모두 실패",
-                    username=username,
-                )
             elif result == BookingResult.LOGIN_ERROR:
                 self._update_status_display("예약 실패")
                 self._start_btn.configure(state="normal")

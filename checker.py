@@ -613,7 +613,8 @@ class BrowserSession:
                 page_text = ""
 
             # 페이지 텍스트에서 실패 키워드 확인
-            fail_keywords_page = ["실패", "불가", "마감", "초과", "오류", "에러"]
+            # "불가" 제외: 성공 페이지에도 "취소 불가" 등 정책 안내에 포함됨
+            fail_keywords_page = ["예약 실패", "예약실패", "마감", "오류", "에러"]
             for kw in fail_keywords_page:
                 if kw in page_text:
                     raise BookingError(f"예약 실패 (페이지 응답): {kw}")

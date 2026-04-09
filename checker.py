@@ -419,47 +419,52 @@ class BrowserSession:
                 logger.warning("[예약] 달력 요소 대기 타임아웃")
             _random_delay(page, 1000, 500)
 
-            # JS로 날짜 버튼 클릭 (달력이 숨김 상태일 수 있어 Playwright click 불가)
+            # Playwright 네이티브 클릭으로 날짜 선택 (trusted event 필요)
+            # showCalendar()로 달력이 표시된 상태이므로 네이티브 클릭 가능
             checkin_fmt = f"{checkin_date[:4]}.{checkin_date[4:6]}.{checkin_date[6:]}"
-            clicked = page.evaluate(
-                """(dateStr) => {
-                    const td = document.querySelector(`td.targetDate[data-date="${dateStr}"]`);
-                    if (!td) return false;
-                    const btn = td.querySelector('button');
-                    if (!btn || btn.disabled) return false;
-                    btn.click();
-                    return true;
-                }""",
-                checkin_fmt,
-            )
-            if not clicked:
+            checkin_btn = page.locator(f'td.targetDate[data-date="{checkin_fmt}"] button:not([disabled])')
+            try:
+                checkin_btn.wait_for(state='visible', timeout=5000)
+                checkin_btn.click()
+            except PlaywrightTimeout:
                 raise BookingError(f"체크인 날짜 {checkin_date} 버튼을 찾을 수 없음")
             logger.info("[예약] 체크인 날짜 %s 클릭 완료", checkin_date)
             _random_delay(page, 2000, 1000)
 
-            # 체크아웃 날짜 클릭 (1박이면 자동 설정 alert → dialog 핸들러가 수락)
-            if len(target_dates) > 1:
-                checkout_fmt = f"{checkout_date[:4]}.{checkout_date[4:6]}.{checkout_date[6:]}"
-                clicked = page.evaluate(
-                    """(dateStr) => {
-                        const td = document.querySelector(`td.targetDate[data-date="${dateStr}"]`);
-                        if (!td) return false;
-                        const btn = td.querySelector('button');
-                        if (!btn || btn.disabled) return false;
-                        btn.click();
-                        return true;
-                    }""",
-                    checkout_fmt,
-                )
-                if not clicked:
-                    raise BookingError(f"체크아웃 날짜 {checkout_date} 버튼을 찾을 수 없음")
+            # 체크아웃 날짜 클릭 (1박이든 다박이든 항상 명시적 클릭)
+            checkout_fmt = f"{checkout_date[:4]}.{checkout_date[4:6]}.{checkout_date[6:]}"
+            checkout_btn = page.locator(f'td.targetDate[data-date="{checkout_fmt}"] button:not([disabled])')
+            try:
+                checkout_btn.wait_for(state='visible', timeout=5000)
+                checkout_btn.click()
                 logger.info("[예약] 체크아웃 날짜 %s 클릭 완료", checkout_date)
-                _random_delay(page, 2000, 1000)
-            else:
-                _random_delay(page, 1500, 500)
+            except PlaywrightTimeout:
+                # 다음날 예약 불가 시 사이트가 자동 설정 ("자동설정" alert)
+                auto_set = any("자동설정" in dr.get("message", "") for dr in dialog_results)
+                if auto_set:
+                    logger.info("[예약] 체크아웃 사이트 자동 설정됨, 클릭 생략")
+                else:
+                    raise BookingError(f"체크아웃 날짜 {checkout_date} 버튼을 찾을 수 없음")
+            _random_delay(page, 2000, 1000)
 
             if _stopped():
                 raise BookingError("중지 요청됨")
+
+            # _hidden 필드 → 실제 필드로 값 복사 (search()가 읽는 필드)
+            page.evaluate("""() => {
+                const ci = document.getElementById('check_in_day_hidden');
+                const co = document.getElementById('check_out_day_hidden');
+                if (ci && ci.value) {
+                    const dst = document.getElementById('check_in_day');
+                    if (dst) dst.value = ci.value;
+                }
+                if (co && co.value) {
+                    const dst = document.getElementById('check_out_day');
+                    if (dst) dst.value = co.value;
+                }
+            }""")
+            logger.info("[예약] 날짜 필드 동기화: 체크인=%s, 체크아웃=%s",
+                        checkin_date, checkout_date)
 
             # 3단계: "선택일로 예약하기" 클릭
             logger.info("[예약] 선택일로 예약하기 클릭...")

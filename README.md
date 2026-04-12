@@ -1,102 +1,110 @@
-# 서울특별시 연수원 자동 예약 (Yeonsu-Bot)
+# 서울특별시 연수원 자동 예약 (Yeonsu-Bot Web)
 
 놀러다니기 좋아하는 내 친구 한수를 위해 만드는 서울시 공무원 연수원 자동 예약 프로그램
+
+브라우저에서 접속해 사용하는 웹 버전. Oracle Cloud Free Tier VM에 Docker로 배포.
 
 ## 기능
 
 - 10개 연수원 예약 가능 날짜 자동 모니터링
 - 전체 범위 빈방 발견 시 자동 예약
-- Slack 알림 (빈방 발견, 예약 성공)
-- 설정 자동 저장/복원 (settings.json)
+- **최대 3개 계정을 독립 슬롯으로 동시 실행** (각각 다른 연수원/날짜 설정 가능)
+- Slack 알림 (예약 성공 시 `[Slot N]` 슬롯 번호 포함)
+- 설정 자동 저장/복원 (슬롯별 `settings_0.json`, `settings_1.json`, `settings_2.json`)
 - 세션 만료 시 자동 재로그인
 - 메모리 누수 방지를 위한 브라우저 주기적 재시작
-- 자동화 탐지 우회 (headless 비활성화, webdriver 플래그 제거, 랜덤 대기)
-- 예약 플로우 안정화 (달력 AJAX 대기, 기관배정 팝업 처리, 예약안내 팝업 자동 동의)
-- 중지 버튼 즉시 반응 (예약 진행 중에도 단계별 중지 체크)
+- 실시간 로그 스트리밍 (WebSocket)
+- 재접속/새 탭 열어도 최근 200줄 로그 복원
 
 ## 지원 연수원
 
 속초수련원, 서천연수원, 수안보연수원, 제주연수원, 통영마리나연수원, 경주연수원, 엘리시안강촌연수원, 블룸비스타연수원, 여수히든베이연수원, 여수베네치아연수원
 
-## 설치 및 실행
+## 사용 방법
+
+1. 브라우저에서 `http://<서버IP>:8000` 접속
+2. **슬롯 탭** ([슬롯 1] [슬롯 2] [슬롯 3]) 에서 사용할 슬롯 선택
+3. 아이디, 비밀번호, 연수원, 체크인/체크아웃, 확인 간격 입력
+4. **시작** 버튼 클릭 → 자동 모니터링 + 예약 진행
+5. 예약 완료 시 Slack 알림 후 해당 슬롯 자동 정지
+6. 탭 레이블의 `●` 표시로 어느 슬롯이 실행 중인지 한눈에 파악 가능
+
+## 배포 (Docker + Oracle Cloud)
 
 ### 요구사항
 
-- Python 3.14+
-- Chrome 또는 Edge 브라우저
+- Docker, Docker Compose
+- Oracle Cloud Free Tier VM (ARM `VM.Standard.A1.Flex` 권장 — 2 OCPU / 12GB)
 
-### 설치
+### Oracle Cloud VM 방화벽 설정
 
-```bash
-# 의존성 설치 (uv 사용)
-uv sync
-
-# Playwright 브라우저 드라이버 설치
-uv run playwright install
-```
-
-### 실행
+Oracle Cloud Security List와 Ubuntu iptables 양쪽 모두 열어야 합니다.
 
 ```bash
-uv run python main.py
+# Oracle Cloud Console → Security List → Ingress Rule 추가
+# TCP 22 (SSH), TCP 8000 (앱)
+
+# VM 내부 iptables
+sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport 8000 -j ACCEPT
+sudo netfilter-persistent save
 ```
 
-### Windows EXE 빌드
-
-GitHub에서 `v*` 태그를 push하면 GitHub Actions가 자동으로 Windows EXE를 빌드합니다.
+### 배포
 
 ```bash
-git tag v1.0.0
-git push origin v1.0.0
+# Docker 설치 (VM 최초 1회)
+sudo apt update && sudo apt install -y docker.io docker-compose-plugin
+sudo usermod -aG docker ubuntu && newgrp docker
+
+# 앱 클론 및 실행
+git clone https://github.com/JYKil/yeonsu-bot /opt/yeonsubot
+cd /opt/yeonsubot
+mkdir -p data
+docker compose up -d --build
 ```
 
-또는 [Actions 탭](../../actions)에서 수동 실행할 수 있습니다.
+접속: `http://<Oracle-VM-공용-IP>:8000`
 
-## 사용 방법
+### 로컬 테스트
 
-1. **설정 탭**에서 아이디, 비밀번호, 연수원, 체크인/체크아웃, 확인 간격을 입력
-2. **시작** 버튼을 누르면 자동으로 모니터링 + 예약 진행
-3. 예약 완료 시 Slack 알림 후 자동 정지
-4. 예약 실패 시 자동 재시도 후 모니터링 계속
-
-## UI 디자인 시안
-
-**[디자인 시안 보러가기](https://jykil.github.io/Yeonsu-Bot/)**
-
-4가지 화면 상태를 볼 수 있습니다:
-- 대기 중 (시작 전)
-- 모니터링 중 (빈방 찾는 중)
-- 예약 진행 중 (빈방 발견, 자동 예약 시도)
-- 예약 완료
+```bash
+docker compose up --build
+# http://localhost:8000 접속
+```
 
 ## 프로젝트 구조
 
 ```
-Yeonsu-Bot/
-├── main.py          # 진입점 — GUI 앱 실행
-├── gui.py           # CustomTkinter GUI (설정, 상태, 로그)
-├── checker.py       # Playwright 기반 예약 가능 확인 + 자동 예약
-├── scheduler.py     # Playwright 전용 워커 스레드 + 주기적 모니터링
-├── notifier.py      # Slack 웹훅 알림 전송
-├── config.py        # 설정 저장/불러오기 (settings.json)
-├── facilities.py    # 연수원 목록 및 코드 매핑
-├── requirements.txt # 의존성 목록
-├── pyproject.toml   # 프로젝트 메타데이터 (uv)
-└── docs/            # UI 디자인 시안 (GitHub Pages)
+YeonsuBot-Web/
+├── main.py           # FastAPI 진입점
+├── web_server.py     # FastAPI 앱 (SlotState×3, /ws/{slot_id}, lifespan)
+├── checker.py        # Playwright 기반 예약 확인 + 자동 예약
+├── scheduler.py      # 워커 스레드 + 주기적 모니터링
+├── notifier.py       # Slack 웹훅 알림 (slot_label 포함)
+├── config.py         # 슬롯별 설정 저장/불러오기 (settings_{n}.json)
+├── facilities.py     # 연수원 목록 및 코드 매핑
+├── templates/
+│   └── index.html    # 탭 UI (슬롯 3개, Vanilla JS)
+├── requirements.txt  # 의존성 목록
+├── Dockerfile
+├── docker-compose.yml
+└── data/             # settings_0.json, settings_1.json, settings_2.json (볼륨)
 ```
 
 ## 기술 스택
 
 | 항목 | 선택 |
 |------|-----|
-| GUI | Python 3 + CustomTkinter |
-| 브라우저 자동화 | Playwright (시스템 Chrome/Edge) |
+| 웹 프레임워크 | FastAPI + uvicorn |
+| 실시간 통신 | WebSocket (슬롯별 `/ws/{slot_id}`) |
+| 프론트엔드 | Vanilla JS (단일 HTML) |
+| 브라우저 자동화 | Playwright (headless Chromium) |
 | HTTP | requests |
-| 달력 위젯 | tkcalendar |
-| 빌드/배포 | PyInstaller (Windows .exe) |
 | 알림 | Slack Incoming Webhook |
-| CI | GitHub Actions |
+| 컨테이너 | Docker (`mcr.microsoft.com/playwright/python`) |
+| 배포 | Oracle Cloud Free Tier (ARM VM) |
 
 ## 주의사항
 
-- **2026-06-02**: GitHub Actions Node.js 20 지원 종료 → `actions/checkout@v4`, `actions/setup-python@v5`를 Node.js 24 지원 버전으로 업그레이드 필요
+- 슬롯 3개 동시 실행 시 Chromium × 3 = 약 900MB RAM 사용. AMD Micro (1GB) 인스턴스에서는 부족할 수 있으므로 ARM Free Tier 사용 권장.
+- `data/` 디렉토리가 Docker 볼륨으로 마운트되어 설정이 컨테이너 재시작 후에도 유지됩니다.

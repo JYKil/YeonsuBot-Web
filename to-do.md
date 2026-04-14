@@ -198,5 +198,5 @@
 
 ### Docker & 배포
 
-- [ ] Docker: `docker compose up --build` 후 `http://localhost:8000` 동일 절차 반복
+- [x] Docker: 로컬 macOS (Docker Desktop) 에서 `docker compose up --build` 정상 동작 확인
 - [ ] Oracle Cloud VM에서 `http://<공용IP>:8000` 접속 확인

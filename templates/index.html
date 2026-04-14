@@ -320,6 +320,7 @@
       <div class="status-row">
         <span class="dot gray" id="status-dot" aria-hidden="true"></span>
         <span class="status-label" id="status-label">중지</span>
+        <span class="badge" id="status-badge" hidden></span>
       </div>
       <div class="status-sub" id="status-sub"></div>
     </div>
@@ -389,6 +390,7 @@
   const els = {
     statusDot: $('status-dot'),
     statusLabel: $('status-label'),
+    statusBadge: $('status-badge'),
     statusSub: $('status-sub'),
     btnStart: $('btn-start'),
     btnStop: $('btn-stop'),
@@ -445,28 +447,34 @@
     const status = (s && s.status) || '중지';
     const running = !!(s && s.running);
     const result = s && s.last_result;
+    const isSuccess = result && result.result === 'SUCCESS';
 
-    els.statusLabel.textContent = status;
+    // 기본 리셋
     els.statusDot.className = 'dot';
 
-    if (result && result.result === 'SUCCESS') {
-      els.statusLabel.innerHTML = '';
-      const badge = document.createElement('span');
-      badge.className = 'badge';
-      badge.textContent = '예약완료 ' + formatBookedDate(result.detail || '');
-      els.statusLabel.replaceWith(badge);
-      badge.id = 'status-label';
-      els.statusLabel = badge;
-    } else if (running) {
-      if (status.includes('예약 시도')) {
-        els.statusDot.classList.add('blue');
-      } else if (status.includes('오류') || status.includes('실패')) {
-        els.statusDot.classList.add('red');
-      } else {
-        els.statusDot.classList.add('green');
-      }
+    if (isSuccess) {
+      // 뱃지 모드: 레이블 숨기고 뱃지 표시, dot 숨김
+      els.statusLabel.hidden = true;
+      els.statusDot.hidden = true;
+      els.statusBadge.hidden = false;
+      els.statusBadge.textContent = '예약완료 ' + formatBookedDate(result.detail || '');
     } else {
-      els.statusDot.classList.add('gray');
+      // 일반 모드: 레이블 + dot 표시, 뱃지 숨김
+      els.statusLabel.hidden = false;
+      els.statusDot.hidden = false;
+      els.statusBadge.hidden = true;
+      els.statusLabel.textContent = status;
+      if (running) {
+        if (status.includes('예약 시도')) {
+          els.statusDot.classList.add('blue');
+        } else if (status.includes('오류') || status.includes('실패')) {
+          els.statusDot.classList.add('red');
+        } else {
+          els.statusDot.classList.add('green');
+        }
+      } else {
+        els.statusDot.classList.add('gray');
+      }
     }
 
     // 보조 라인

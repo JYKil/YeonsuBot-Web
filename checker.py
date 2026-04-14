@@ -145,12 +145,13 @@ class BrowserSession:
 
         self._pw = sync_playwright().start()
         channel = _detect_browser_channel()
-        launch_kwargs = {
-            "headless": True,
-            "args": ["--no-sandbox", "--disable-dev-shm-usage"],
-        }
+        launch_kwargs: dict = {"headless": True}
         if channel:
+            # 시스템 Chrome/Edge — 기본 샌드박스 유지 (로컬 macOS/Windows)
             launch_kwargs["channel"] = channel
+        else:
+            # Playwright 내장 Chromium (Docker/Linux) — 샌드박스 해제 필요
+            launch_kwargs["args"] = ["--no-sandbox", "--disable-dev-shm-usage"]
         self._browser = self._pw.chromium.launch(**launch_kwargs)
         self._context = self._browser.new_context(
             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",

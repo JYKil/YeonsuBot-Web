@@ -110,7 +110,9 @@ GET  /api/status → {running, status, last_check_at, next_check_at, target}
 │  대상: 신구로 5/1~5/2     │  09:00:02  login success      │
 │  [      STOP      ]      │                                │
 │  ──────────────────      │  (#1d1d1f, SF Mono 13px,      │
-│  연수원: 신구로 연수원    │   자동 스크롤)                 │
+│  아이디: hong.gildong    │   자동 스크롤)                 │
+│  비밀번호: ••••••• [표시]│                                │
+│  연수원: 신구로 연수원    │                                │
 │  체크인: 2024-05-01      │                                │
 │  체크아웃: 2024-05-02    │                                │
 │  점검주기: 2분           │                                │
@@ -151,8 +153,9 @@ GET  /api/status → {running, status, last_check_at, next_check_at, target}
 | nav 제목 "YeonsuBot" | Body Emphasis | SF Pro Text · 17px · 600 · line-height 1.24 · letter-spacing -0.374px |
 | 상태 뱃지 텍스트 ("모니터링 중") | Body Emphasis | SF Pro Text · 17px · 600 · 1.24 · -0.374px |
 | 보조 라인 ("마지막: 09:23 …") | Caption | SF Pro Text · 14px · 400 · 1.29 · -0.224px |
-| 폼 라벨 ("연수원") | Caption Bold | SF Pro Text · 14px · 600 · 1.29 · -0.224px |
-| 폼 입력값 | Body | SF Pro Text · 17px · 400 · 1.47 · -0.374px |
+| 폼 라벨 ("아이디", "비밀번호", "연수원" …) | Caption Bold | SF Pro Text · 14px · 600 · 1.29 · -0.224px |
+| 폼 입력값 (아이디/비번 포함) | Body | SF Pro Text · 17px · 400 · 1.47 · -0.374px |
+| 비번 표시/숨김 토글 텍스트 | Caption Bold | SF Pro Text · 14px · 600 · `#0071e3` |
 | 시작/중지 버튼 텍스트 | Button | SF Pro Text · 17px · 400 · line-height 1.0 (상하 padding으로 높이 확보) |
 | 로그 본문 | (신규) | SF Mono · 13px · 400 · 1.5 |
 | 로그 타임스탬프 | Micro | SF Mono · 12px · 400 · 1.33 · -0.12px (`rgba(255,255,255,0.6)`) |
@@ -243,7 +246,9 @@ GET  /api/status → {running, status, last_check_at, next_check_at, target}
 - 상태 뱃지: `role="status"`, `aria-live="polite"`, `aria-label`에 색에 의존하지 않는 텍스트 ("모니터링 중, 마지막 확인 09:23")
 - 로그 영역: `aria-live="polite"`, 사용자 스크롤 시 라이브 영역 일시 갱신 중단
 - 모든 인터랙티브 요소: keyboard focus 시 `outline: 2px solid #0071e3; outline-offset: 2px`
-- Tab 순서: 폼 인풋(연수원→체크인→체크아웃→점검주기) → START/STOP → Slack 테스트
+- Tab 순서: START/STOP → 폼 인풋(아이디→비밀번호→비번 토글→연수원→체크인→체크아웃→점검주기) → Slack 테스트
+- 비밀번호 인풋: `type="password"` 기본, 토글 버튼으로 `type="text"` 전환. `autocomplete="current-password"`. 토글 버튼 `aria-pressed` 상태 반영
+- 아이디 인풋: `autocomplete="username"`
 - 모든 버튼 최소 44px 터치 타겟 (padding 으로 확보)
 - Color contrast 검증:
   - 로그 텍스트 `#ffffff` on `#1d1d1f` = **16.0:1** (AAA)

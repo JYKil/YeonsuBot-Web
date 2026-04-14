@@ -211,6 +211,23 @@
     background: #fff;
   }
 
+  .password-wrap { position: relative; display: flex; align-items: center; }
+  .password-wrap input { flex: 1; padding-right: 64px; }
+  .password-toggle {
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    color: var(--accent);
+    font-size: 14px;
+    font-weight: 600;
+    padding: 6px 10px;
+    border-radius: 8px;
+    min-height: 32px;
+  }
+  .password-toggle:hover { background: rgba(0, 113, 227, 0.08); }
+
   /* ───── Log viewer ───── */
   .log-header {
     display: flex;
@@ -345,6 +362,18 @@
 
     <!-- 2순위: 폼 -->
     <form class="form" onsubmit="return false">
+      <div class="field">
+        <label for="username">아이디</label>
+        <input id="username" type="text" autocomplete="username" placeholder="서울시 공무원 아이디" value="hong.gildong">
+      </div>
+      <div class="field">
+        <label for="password">비밀번호</label>
+        <div class="password-wrap">
+          <input id="password" type="password" autocomplete="current-password" placeholder="••••••••" value="supersecret">
+          <button type="button" class="password-toggle" aria-label="비밀번호 표시 전환"
+                  onclick="(function(b){var i=document.getElementById('password');var s=i.type==='password';i.type=s?'text':'password';b.textContent=s?'숨김':'표시';b.setAttribute('aria-pressed',s);})(this)">표시</button>
+        </div>
+      </div>
       <div class="field">
         <label for="facility">연수원</label>
         <select id="facility">

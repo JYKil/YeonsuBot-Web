@@ -12,7 +12,7 @@
 | 선행 — `/review` (pre-landing) | ✅ 완료 | P2 버그 2개 수정 `4a9890c` |
 | Phase 4 — 패키지 & Docker | ✅ 완료 | Dockerfile + docker-compose.yml + .dockerignore + .env.example, gui.py & build-exe.yml 삭제 |
 | Phase 5 — Oracle Cloud 배포 | ⬜ 대기 | 실제 VM 작업 필요 |
-| Phase 6 — 로컬 검증 | ✅ 완료 | REST 8개 + WS 1개 + 시스템 Chrome 감지 검증 |
+| Phase 6 — 로컬 검증 | ✅ 완료 | REST smoke + WS + UI 시각 (데스크톱 + 모바일 DevTools) |
 
 작업 세부는 `to-do.md`, 디자인 목업은 `mockups/index.html` 참조.
 

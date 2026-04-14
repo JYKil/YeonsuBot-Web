@@ -10,7 +10,7 @@
 | Phase 3 — 프론트엔드 | ✅ 완료 |
 | Phase 4 — 패키지 & Docker | ✅ 완료 |
 | Phase 5 — Oracle Cloud 배포 | ⬜ 대기 |
-| Phase 6 — 로컬 검증 | ✅ 완료 (REST + WS smoke) |
+| Phase 6 — 로컬 검증 | ✅ 완료 (REST + WS smoke + UI 시각 확인) |
 
 ---
 
@@ -169,16 +169,32 @@
 - [x] 시스템 Chrome 감지 로그 확인 → `--no-sandbox` 미적용 (Phase 1-3 + `/review` 조건부 수정 검증)
 - [x] lifespan shutdown → 워커 스레드 graceful join 검증
 
-### UI 시각 확인 (남음)
+### UI 시각 확인 ✅
 
-- [ ] 브라우저로 `http://localhost:8000` 접속 후 레이아웃 확인
-- [ ] 첫 로드: 빈 상태 안내 표시 확인
-- [ ] 설정 입력 → [시작] → 버튼 spinner → 보조 라인 표시 확인
-- [ ] 비밀번호 표시/숨김 토글 확인
-- [ ] 로그 위로 스크롤 → autoscroll pause + "↓ 새 로그 N건" 버튼 확인
-- [ ] 예약 성공 시뮬레이션 → "예약완료" 뱃지 + 자동 중지 → 재시작 시 뱃지 → 일반 상태 복귀 (idempotent 렌더 검증)
-- [ ] 키보드 Tab → focus ring + 의도된 순서 확인
-- [ ] 모바일 viewport (375px) → 세로 스택 + 로그 영역 240px 이상 확인
+- [x] 브라우저로 `http://localhost:8000` 접속 후 레이아웃 확인
+- [x] 첫 로드: 빈 상태 안내 표시 확인
+- [x] 설정 입력 → [시작] → 버튼 spinner → 대상 보조 라인 표시 확인
+- [x] 비밀번호 표시/숨김 토글 확인
+- [x] 로그 위로 스크롤 → autoscroll pause + "↓ 새 로그 N건" 버튼 확인
+- [x] 예약 성공 시뮬레이션 → "예약완료" 뱃지 + 자동 중지 → 재시작 시 뱃지 → 일반 상태 복귀 (idempotent 렌더 검증)
+- [x] 키보드 Tab → focus ring + 의도된 순서 확인
+- [x] 모바일 viewport (375px, Chrome DevTools) → 세로 스택 + 로그 영역 240px 이상 확인
+
+### 사용 중 발견된 개선 사항 ✅
+
+초기 구현 후 실사용하면서 다음 항목을 추가/수정했음 (각 항목 커밋 있음):
+
+- [x] 체크인/체크아웃 기본값: 오늘/내일 자동 (로컬 타임존)
+- [x] 체크인 변경 시 체크아웃 항상 +1일로 덮어쓰기
+- [x] 저장된 과거 날짜는 무시하고 오늘/내일 폴백
+- [x] 점검 주기 기본값 1분
+- [x] 상태 뱃지 보조 라인 간결화 — "대상: ..." 만 표시 (마지막/다음 확인 시각은 로그로 충분)
+- [x] START/STOP 버튼을 폼 마지막 (점검 주기 아래) 로 이동
+- [x] "로그 지우기" 버튼 + `POST /api/logs/clear` 엔드포인트 + WS `clear` 브로드캐스트 (다중 탭 동기화)
+- [x] 스케줄러 시작 시 기존 로그 자동 초기화 (`api_start` 에서 buffer clear)
+- [x] 사이클 간 시각적 구분자 — `scheduler.on_cycle_start` 콜백 + 2번째 사이클부터 점선 separator 삽입
+- [x] 예약 성공 뱃지 렌더링을 idempotent 하게 재작성 (statusLabel/statusBadge 형제 hidden 토글 방식)
+- [x] `--no-sandbox` 는 내장 Chromium 에서만 적용 (로컬 macOS/Windows 시스템 Chrome 샌드박스 유지)
 
 ### Docker & 배포
 

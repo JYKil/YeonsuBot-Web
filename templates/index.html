@@ -623,8 +623,15 @@
       if (s.username) els.username.value = s.username;
       if (s.password) els.password.value = s.password; // 마스크 값
       if (s.facility) els.facility.value = s.facility;
-      if (s.checkin) els.checkin.value = s.checkin;
-      if (s.checkout) els.checkout.value = s.checkout;
+
+      // 체크인/체크아웃: 저장값 우선, 없으면 오늘/내일 기본값 (로컬 타임존)
+      const fmt = (d) => d.toLocaleDateString('en-CA'); // YYYY-MM-DD
+      const today = new Date();
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      els.checkin.value  = s.checkin  || fmt(today);
+      els.checkout.value = s.checkout || fmt(tomorrow);
+
       if (s.interval_seconds) els.interval.value = secondsToMinutes(s.interval_seconds);
     } catch (e) {
       console.warn('settings load failed', e);
@@ -722,13 +729,12 @@
     els.passwordToggle.setAttribute('aria-pressed', String(isPwd));
   });
 
-  // 체크인 변경 시 체크아웃 자동 +1일
+  // 체크인 변경 시 체크아웃 항상 +1일로 덮어쓰기
   els.checkin.addEventListener('change', () => {
     if (!els.checkin.value) return;
-    if (els.checkout.value && els.checkout.value > els.checkin.value) return;
     const d = new Date(els.checkin.value + 'T00:00:00');
     d.setDate(d.getDate() + 1);
-    els.checkout.value = d.toISOString().slice(0, 10);
+    els.checkout.value = d.toLocaleDateString('en-CA');
   });
 
   // 초기화

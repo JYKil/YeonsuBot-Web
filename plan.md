@@ -1,5 +1,23 @@
 # YeonsuBot 웹 전환 계획
 
+## 진행 상황 (2026-04-14)
+
+| Phase | 상태 | 비고 |
+|---|---|---|
+| 선행 — `/plan-eng-review` | ✅ 완료 | 3슬롯 → 1슬롯 스코프 축소 |
+| 선행 — `/plan-design-review` | ✅ 완료 | 6.5 → 9.2/10, 목업 + 디자인 토큰 확정 |
+| Phase 1 — 핵심 로직 (config/checker) | ✅ 완료 | `ed2a137` |
+| Phase 2 — FastAPI 백엔드 (web_server/main) | ✅ 완료 | `ed2a137` |
+| Phase 3 — 프론트엔드 (templates/index.html) | ✅ 완료 | `ed2a137` |
+| 선행 — `/review` (pre-landing) | ✅ 완료 | P2 버그 2개 수정 `4a9890c` |
+| Phase 4 — 패키지 & Docker | 🟡 부분 | requirements.txt 완료, Dockerfile/compose/env.example/gui.py 삭제 남음 |
+| Phase 5 — Oracle Cloud 배포 | ⬜ 대기 | |
+| Phase 6 — 검증 | ⬜ 대기 | 로컬 동작 확인 + VM 배포 검증 |
+
+작업 세부는 `to-do.md`, 디자인 목업은 `mockups/index.html` 참조.
+
+---
+
 ## 개요
 CustomTkinter 데스크톱 앱을 FastAPI + WebSocket + HTML 웹 앱으로 전환한다.
 **본인 1명 전용**, 한 번에 한 세션만 돌리는 단일 슬롯 구조. 브라우저로 접속해 로컬 설치 없이 사용하고, Oracle Cloud Free Tier VM에 Docker로 배포한다.

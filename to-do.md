@@ -10,7 +10,7 @@
 | Phase 3 — 프론트엔드 | ✅ 완료 |
 | Phase 4 — 패키지 & Docker | ✅ 완료 |
 | Phase 5 — Oracle Cloud 배포 | ⬜ 대기 |
-| Phase 6 — 검증 | ⬜ 대기 |
+| Phase 6 — 로컬 검증 | ✅ 완료 (REST + WS smoke) |
 
 ---
 
@@ -154,17 +154,33 @@
 
 ## Phase 6: 검증
 
-- [ ] 로컬 `uv run python main.py` 후 `http://localhost:8000` 접속 확인
+### 로컬 REST + WS Smoke (2026-04-14, ✅)
+
+로컬에서 `uv run --with fastapi --with 'uvicorn[standard]' --with playwright --with requests python main.py` 로 서버 기동 후 검증:
+
+- [x] `GET /` → 200, index.html 렌더
+- [x] `GET /api/status` → `{running: false, status: "중지"}` 초기 상태
+- [x] `GET /api/settings` → DEFAULTS + 10개 facilities 반환
+- [x] `POST /api/start` (빈 body) → **400** "아이디를 입력하세요"
+- [x] `POST /api/start` (정상 payload) → **200**, `running: true`, `target: "속초수련원 2026-06-01~2026-06-02"`, `status: "로그인 중..."`
+- [x] 중복 `POST /api/start` → **409** "이미 실행 중입니다" (인라인 토스트 동작 검증)
+- [x] `POST /api/stop` → 200, `running: false`, 실패 경로 `last_result: LOGIN_ERROR` 기록
+- [x] WS `/ws` 연결 → 5개 로그 즉시 재수신 (log_buffer 복원 검증)
+- [x] 시스템 Chrome 감지 로그 확인 → `--no-sandbox` 미적용 (Phase 1-3 + `/review` 조건부 수정 검증)
+- [x] lifespan shutdown → 워커 스레드 graceful join 검증
+
+### UI 시각 확인 (남음)
+
+- [ ] 브라우저로 `http://localhost:8000` 접속 후 레이아웃 확인
 - [ ] 첫 로드: 빈 상태 안내 표시 확인
-- [ ] 설정 입력 → [시작] → 버튼 spinner → 상태 "모니터링 중" + 보조 라인 표시 확인
-- [ ] [중지] → 상태 "중지", 버튼 START 로 토글 확인
-- [ ] 실행 중 `/api/start` 재호출 → 409 + 인라인 토스트 확인
-- [ ] [Slack 테스트] → 성공 토스트 + 웹훅 메시지 수신 확인
-- [ ] 페이지 새로고침 → 상태 + 로그 버퍼 + 보조 라인 복원 확인
-- [ ] WS 강제 끊김 → 인라인 배너 + 3초 후 자동 재연결 확인
+- [ ] 설정 입력 → [시작] → 버튼 spinner → 보조 라인 표시 확인
+- [ ] 비밀번호 표시/숨김 토글 확인
 - [ ] 로그 위로 스크롤 → autoscroll pause + "↓ 새 로그 N건" 버튼 확인
-- [ ] 예약 성공 시뮬레이션 → "예약완료" 뱃지 + 자동 중지 → 재시작 시 뱃지 복귀 확인
+- [ ] 예약 성공 시뮬레이션 → "예약완료" 뱃지 + 자동 중지 → 재시작 시 뱃지 → 일반 상태 복귀 (idempotent 렌더 검증)
 - [ ] 키보드 Tab → focus ring + 의도된 순서 확인
 - [ ] 모바일 viewport (375px) → 세로 스택 + 로그 영역 240px 이상 확인
-- [ ] Docker: `docker compose up` 후 동일 절차 반복
+
+### Docker & 배포
+
+- [ ] Docker: `docker compose up --build` 후 `http://localhost:8000` 동일 절차 반복
 - [ ] Oracle Cloud VM에서 `http://<공용IP>:8000` 접속 확인

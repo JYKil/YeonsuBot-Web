@@ -1,0 +1,733 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>YeonsuBot</title>
+<style>
+  :root {
+    --bg: #f5f5f7;
+    --panel: #ffffff;
+    --log-bg: #1d1d1f;
+    --text: #1d1d1f;
+    --text-secondary: rgba(0, 0, 0, 0.8);
+    --text-tertiary: rgba(0, 0, 0, 0.48);
+    --text-on-dark: #ffffff;
+    --text-on-dark-dim: rgba(255, 255, 255, 0.6);
+    --accent: #0071e3;
+    --green: #34c759;
+    --red: #ff3b30;
+    --yellow: #ffcc00;
+    --nav-bg: rgba(0, 0, 0, 0.8);
+    --hairline: rgba(0, 0, 0, 0.08);
+    --input-bg: #fafafc;
+
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 24px;
+    --space-6: 32px;
+
+    --radius-input: 11px;
+    --radius-button: 8px;
+
+    --font-sans: "SF Pro Text", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif;
+    --font-mono: "SF Mono", Menlo, Monaco, "Courier New", monospace;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: var(--font-sans);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 17px;
+    line-height: 1.47;
+    letter-spacing: -0.374px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Nav */
+  .nav {
+    position: sticky; top: 0; z-index: 10;
+    height: 48px;
+    background: var(--nav-bg);
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    color: var(--text-on-dark);
+    display: flex; align-items: center;
+    padding: 0 var(--space-5);
+  }
+  .nav-title {
+    font-size: 17px; font-weight: 600;
+    line-height: 1.24; letter-spacing: -0.374px;
+  }
+
+  /* Layout */
+  .shell {
+    max-width: 1200px; margin: 0 auto;
+    padding: var(--space-6) var(--space-5);
+    display: grid;
+    grid-template-columns: 40% 1fr;
+    gap: var(--space-5);
+    min-height: calc(100vh - 48px);
+  }
+  .panel {
+    background: var(--panel);
+    border-radius: var(--radius-input);
+    padding: var(--space-6);
+    display: flex; flex-direction: column;
+  }
+  .log-card {
+    background: var(--log-bg);
+    border-radius: var(--radius-input);
+    padding: var(--space-5);
+    color: var(--text-on-dark);
+    display: flex; flex-direction: column;
+    min-height: 480px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* Status block */
+  .status-block { display: flex; flex-direction: column; gap: var(--space-2); }
+  .status-row { display: flex; align-items: center; gap: var(--space-2); }
+  .dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    flex: 0 0 auto;
+    background: var(--text-tertiary);
+  }
+  .dot.green { background: var(--green); }
+  .dot.gray  { background: var(--text-tertiary); }
+  .dot.red   { background: var(--red); }
+  .dot.blue  { background: var(--accent); animation: pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%      { opacity: 0.55; transform: scale(0.85); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .dot.blue { animation: none; }
+  }
+  .status-label {
+    font-size: 17px; font-weight: 600;
+    line-height: 1.24; letter-spacing: -0.374px;
+  }
+  .status-sub {
+    font-size: 14px;
+    line-height: 1.29; letter-spacing: -0.224px;
+    color: var(--text-secondary);
+    min-height: 18px;
+  }
+  .badge {
+    display: inline-flex; align-items: center; gap: var(--space-1);
+    background: var(--accent); color: #fff;
+    font-size: 14px; font-weight: 600; letter-spacing: -0.224px;
+    padding: 6px 10px;
+    border-radius: var(--radius-button);
+  }
+
+  .action-row { margin-top: var(--space-4); }
+
+  button {
+    font-family: inherit;
+    border: none; cursor: pointer;
+    font-size: 17px; font-weight: 400;
+    letter-spacing: -0.374px;
+  }
+  button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .btn-primary {
+    width: 100%;
+    background: var(--accent); color: #fff;
+    border-radius: var(--radius-button);
+    padding: 14px var(--space-4);
+    min-height: 48px;
+  }
+  .btn-stop {
+    width: 100%;
+    background: var(--text); color: #fff;
+    border-radius: var(--radius-button);
+    padding: 14px var(--space-4);
+    min-height: 48px;
+  }
+  .btn-secondary {
+    width: 100%;
+    background: var(--input-bg);
+    color: var(--text-secondary);
+    border-radius: var(--radius-input);
+    padding: 12px var(--space-4);
+    min-height: 44px;
+    border: 1px solid var(--hairline);
+    font-size: 15px;
+  }
+
+  .divider {
+    border: 0; border-top: 1px solid var(--hairline);
+    margin: var(--space-5) 0;
+  }
+
+  /* Form */
+  .form { display: flex; flex-direction: column; gap: var(--space-4); }
+  .field { display: flex; flex-direction: column; gap: var(--space-2); }
+  label {
+    font-size: 14px; font-weight: 600;
+    line-height: 1.29; letter-spacing: -0.224px;
+    color: var(--text-secondary);
+  }
+  input, select {
+    font-family: inherit;
+    font-size: 17px;
+    line-height: 1.47; letter-spacing: -0.374px;
+    color: var(--text);
+    background: var(--input-bg);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-input);
+    padding: 12px 14px;
+    min-height: 44px;
+  }
+  input:focus, select:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    background: #fff;
+  }
+  input:disabled, select:disabled { opacity: 0.6; }
+
+  .password-wrap { position: relative; display: flex; align-items: center; }
+  .password-wrap input { flex: 1; padding-right: 64px; }
+  .password-toggle {
+    position: absolute; right: 6px; top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    color: var(--accent);
+    font-size: 14px; font-weight: 600;
+    padding: 6px 10px;
+    border-radius: 8px;
+    min-height: 32px;
+  }
+  .password-toggle:hover { background: rgba(0, 113, 227, 0.08); }
+
+  .form-error {
+    font-size: 13px; color: var(--red);
+    margin-top: var(--space-1);
+  }
+
+  /* Log viewer */
+  .log-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: var(--space-3);
+    color: var(--text-on-dark-dim);
+    font-size: 12px; letter-spacing: -0.12px;
+  }
+  .log-banner {
+    display: none;
+    background: rgba(255, 59, 48, 0.18);
+    color: #ffb3ae;
+    padding: var(--space-2) var(--space-3);
+    border-radius: 8px;
+    font-size: 13px;
+    margin-bottom: var(--space-2);
+  }
+  .log-banner.show { display: block; }
+  .log-stream {
+    flex: 1;
+    overflow-y: auto;
+    font-family: var(--font-mono);
+    font-size: 13px; line-height: 1.5; letter-spacing: 0;
+    scroll-behavior: smooth;
+  }
+  .log-line { display: flex; gap: var(--space-3); padding: 2px 0; }
+  .log-time {
+    color: var(--text-on-dark-dim);
+    font-size: 12px; flex: 0 0 auto;
+  }
+  .log-msg { color: var(--text-on-dark); word-break: break-word; }
+  .log-empty {
+    color: var(--text-on-dark-dim);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    text-align: center;
+    padding: var(--space-6) 0;
+  }
+  .new-logs-btn {
+    position: absolute;
+    right: var(--space-4); bottom: var(--space-4);
+    background: var(--accent); color: #fff;
+    padding: 8px 14px;
+    border-radius: 980px;
+    font-size: 13px; font-weight: 600;
+    display: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  }
+  .new-logs-btn.show { display: inline-block; }
+
+  /* Toasts */
+  .toast-stack {
+    position: fixed;
+    top: calc(48px + var(--space-4));
+    right: var(--space-5);
+    display: flex; flex-direction: column; gap: var(--space-2);
+    z-index: 100;
+    pointer-events: none;
+  }
+  .toast {
+    padding: 10px 14px;
+    border-radius: var(--radius-input);
+    font-size: 14px; letter-spacing: -0.224px;
+    min-width: 220px;
+    pointer-events: auto;
+    animation: slideIn 0.2s ease-out;
+  }
+  @keyframes slideIn {
+    from { transform: translateX(20px); opacity: 0; }
+    to   { transform: translateX(0); opacity: 1; }
+  }
+  .toast.success { background: #e8f8ed; color: #1d6e34; }
+  .toast.error   { background: #fde8e6; color: #a51810; }
+
+  /* Responsive */
+  @media (max-width: 1070px) {
+    .shell { grid-template-columns: 320px 1fr; }
+  }
+  @media (max-width: 640px) {
+    .shell {
+      grid-template-columns: 1fr;
+      padding: var(--space-4);
+      gap: var(--space-4);
+    }
+    .panel, .log-card { padding: var(--space-4); }
+    .log-card { min-height: 240px; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-title">YeonsuBot</div>
+</nav>
+
+<main class="shell">
+  <!-- Settings panel -->
+  <section class="panel" aria-label="설정 패널">
+    <!-- Status + action -->
+    <div class="status-block" id="status-block" role="status" aria-live="polite">
+      <div class="status-row">
+        <span class="dot gray" id="status-dot" aria-hidden="true"></span>
+        <span class="status-label" id="status-label">중지</span>
+      </div>
+      <div class="status-sub" id="status-sub"></div>
+    </div>
+
+    <div class="action-row">
+      <button class="btn-primary" id="btn-start" type="button">START</button>
+      <button class="btn-stop" id="btn-stop" type="button" style="display:none">STOP</button>
+    </div>
+
+    <hr class="divider">
+
+    <!-- Form -->
+    <form class="form" id="form" onsubmit="return false">
+      <div class="field">
+        <label for="username">아이디</label>
+        <input id="username" type="text" autocomplete="username" placeholder="서울시 공무원 아이디">
+      </div>
+      <div class="field">
+        <label for="password">비밀번호</label>
+        <div class="password-wrap">
+          <input id="password" type="password" autocomplete="current-password" placeholder="••••••••">
+          <button type="button" class="password-toggle" id="password-toggle"
+                  aria-label="비밀번호 표시 전환" aria-pressed="false">표시</button>
+        </div>
+      </div>
+      <div class="field">
+        <label for="facility">연수원</label>
+        <select id="facility"></select>
+      </div>
+      <div class="field">
+        <label for="checkin">체크인</label>
+        <input id="checkin" type="date">
+      </div>
+      <div class="field">
+        <label for="checkout">체크아웃</label>
+        <input id="checkout" type="date">
+      </div>
+      <div class="field">
+        <label for="interval">점검 주기 (분)</label>
+        <input id="interval" type="number" value="2" min="1">
+      </div>
+      <button class="btn-secondary" id="btn-slack" type="button">Slack 테스트</button>
+    </form>
+  </section>
+
+  <!-- Log viewer -->
+  <section class="log-card" aria-label="로그 뷰어">
+    <div class="log-header">
+      <span>로그</span>
+      <span id="log-count">실시간 · 200줄</span>
+    </div>
+    <div class="log-banner" id="log-banner">연결 끊김. 3초 후 재시도...</div>
+    <div class="log-stream" id="log-stream" aria-live="polite">
+      <div class="log-empty" id="log-empty">연결 중...</div>
+    </div>
+    <button type="button" class="new-logs-btn" id="new-logs-btn">↓ 새 로그</button>
+  </section>
+</main>
+
+<div class="toast-stack" id="toast-stack" aria-live="polite"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const els = {
+    statusDot: $('status-dot'),
+    statusLabel: $('status-label'),
+    statusSub: $('status-sub'),
+    btnStart: $('btn-start'),
+    btnStop: $('btn-stop'),
+    btnSlack: $('btn-slack'),
+    form: $('form'),
+    username: $('username'),
+    password: $('password'),
+    passwordToggle: $('password-toggle'),
+    facility: $('facility'),
+    checkin: $('checkin'),
+    checkout: $('checkout'),
+    interval: $('interval'),
+    logStream: $('log-stream'),
+    logEmpty: $('log-empty'),
+    logBanner: $('log-banner'),
+    logCount: $('log-count'),
+    newLogsBtn: $('new-logs-btn'),
+    toastStack: $('toast-stack'),
+  };
+
+  const state = {
+    running: false,
+    autoScroll: true,
+    pendingLogCount: 0,
+    ws: null,
+    wsRetryTimer: null,
+    lastResult: null,
+  };
+
+  // ── Helpers ─────────────────────────────────────────────
+  function toast(message, kind) {
+    const el = document.createElement('div');
+    el.className = 'toast ' + (kind || 'success');
+    el.textContent = message;
+    els.toastStack.appendChild(el);
+    setTimeout(() => {
+      el.style.transition = 'opacity 0.3s';
+      el.style.opacity = '0';
+      setTimeout(() => el.remove(), 300);
+    }, 3000);
+  }
+
+  function minutesToSeconds(min) {
+    const n = parseInt(min, 10);
+    return Number.isFinite(n) && n > 0 ? n * 60 : 120;
+  }
+  function secondsToMinutes(sec) {
+    const n = parseInt(sec, 10);
+    return Number.isFinite(n) && n > 0 ? Math.max(1, Math.round(n / 60)) : 2;
+  }
+
+  // ── Status rendering ────────────────────────────────────
+  function renderStatus(s) {
+    const status = (s && s.status) || '중지';
+    const running = !!(s && s.running);
+    const result = s && s.last_result;
+
+    els.statusLabel.textContent = status;
+    els.statusDot.className = 'dot';
+
+    if (result && result.result === 'SUCCESS') {
+      els.statusLabel.innerHTML = '';
+      const badge = document.createElement('span');
+      badge.className = 'badge';
+      badge.textContent = '예약완료 ' + formatBookedDate(result.detail || '');
+      els.statusLabel.replaceWith(badge);
+      badge.id = 'status-label';
+      els.statusLabel = badge;
+    } else if (running) {
+      if (status.includes('예약 시도')) {
+        els.statusDot.classList.add('blue');
+      } else if (status.includes('오류') || status.includes('실패')) {
+        els.statusDot.classList.add('red');
+      } else {
+        els.statusDot.classList.add('green');
+      }
+    } else {
+      els.statusDot.classList.add('gray');
+    }
+
+    // 보조 라인
+    if (running && s.last_check_at) {
+      const parts = ['마지막 확인: ' + s.last_check_at];
+      if (s.next_check_at) parts.push('다음: ' + s.next_check_at);
+      if (s.target) parts.push('대상: ' + s.target);
+      els.statusSub.textContent = parts.join(' · ');
+    } else if (!running && s && s.target) {
+      els.statusSub.textContent = '대상: ' + s.target;
+    } else {
+      els.statusSub.textContent = '';
+    }
+
+    // 버튼 토글
+    state.running = running;
+    els.btnStart.style.display = running ? 'none' : 'block';
+    els.btnStop.style.display = running ? 'block' : 'none';
+  }
+
+  function formatBookedDate(raw) {
+    if (!raw) return '';
+    if (/^\d{8}$/.test(raw)) {
+      return raw.slice(0, 4) + '.' + raw.slice(4, 6) + '.' + raw.slice(6);
+    }
+    return raw;
+  }
+
+  // ── Log rendering ───────────────────────────────────────
+  function appendLog(entry) {
+    if (els.logEmpty) {
+      els.logEmpty.remove();
+      els.logEmpty = null;
+    }
+    const line = document.createElement('div');
+    line.className = 'log-line';
+    const msg = entry.message || '';
+    const m = msg.match(/^(\d{2}:\d{2}:\d{2})\s+(.*)$/);
+    if (m) {
+      const t = document.createElement('span');
+      t.className = 'log-time'; t.textContent = m[1];
+      const b = document.createElement('span');
+      b.className = 'log-msg'; b.textContent = m[2];
+      if (/\berror|실패|오류/i.test(m[2])) b.style.color = '#ff6b5e';
+      else if (/성공|success|예약 완료/i.test(m[2])) b.style.color = '#5cd679';
+      else if (/warn|경고/i.test(m[2])) b.style.color = '#ffcc00';
+      line.appendChild(t); line.appendChild(b);
+    } else {
+      const b = document.createElement('span');
+      b.className = 'log-msg'; b.textContent = msg;
+      line.appendChild(b);
+    }
+    els.logStream.appendChild(line);
+
+    // 200줄 넘으면 오래된 줄 제거
+    while (els.logStream.children.length > 200) {
+      els.logStream.removeChild(els.logStream.firstChild);
+    }
+
+    if (state.autoScroll) {
+      els.logStream.scrollTop = els.logStream.scrollHeight;
+    } else {
+      state.pendingLogCount++;
+      els.newLogsBtn.textContent = '↓ 새 로그 ' + state.pendingLogCount + '건';
+      els.newLogsBtn.classList.add('show');
+    }
+  }
+
+  els.logStream.addEventListener('scroll', () => {
+    const nearBottom =
+      els.logStream.scrollHeight - els.logStream.scrollTop - els.logStream.clientHeight < 40;
+    if (nearBottom) {
+      state.autoScroll = true;
+      state.pendingLogCount = 0;
+      els.newLogsBtn.classList.remove('show');
+    } else {
+      state.autoScroll = false;
+    }
+  });
+
+  els.newLogsBtn.addEventListener('click', () => {
+    els.logStream.scrollTop = els.logStream.scrollHeight;
+    state.autoScroll = true;
+    state.pendingLogCount = 0;
+    els.newLogsBtn.classList.remove('show');
+  });
+
+  // ── WebSocket ───────────────────────────────────────────
+  function connectWS() {
+    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const url = proto + '//' + location.host + '/ws';
+    const ws = new WebSocket(url);
+    state.ws = ws;
+
+    ws.addEventListener('open', () => {
+      els.logBanner.classList.remove('show');
+    });
+
+    ws.addEventListener('message', (ev) => {
+      let msg;
+      try { msg = JSON.parse(ev.data); } catch { return; }
+      if (msg.type === 'log') {
+        appendLog(msg);
+      } else if (msg.type === 'status') {
+        refreshStatus();
+      } else if (msg.type === 'result') {
+        state.lastResult = msg;
+        refreshStatus();
+        if (msg.result === 'SUCCESS') {
+          toast('예약 성공! ' + formatBookedDate(msg.detail || ''), 'success');
+        } else if (msg.result === 'FAILED') {
+          toast('예약 시도 실패 — 모니터링 계속', 'error');
+        } else if (msg.result === 'LOGIN_ERROR') {
+          toast('로그인 실패: ' + (msg.detail || ''), 'error');
+        }
+      } else if (msg.type === 'error') {
+        toast(msg.message || '오류 발생', 'error');
+      }
+    });
+
+    ws.addEventListener('close', () => {
+      state.ws = null;
+      els.logBanner.classList.add('show');
+      clearTimeout(state.wsRetryTimer);
+      state.wsRetryTimer = setTimeout(connectWS, 3000);
+    });
+
+    ws.addEventListener('error', () => {
+      try { ws.close(); } catch {}
+    });
+  }
+
+  // ── API ─────────────────────────────────────────────────
+  async function loadSettings() {
+    try {
+      const r = await fetch('/api/settings');
+      if (!r.ok) return;
+      const s = await r.json();
+      // facility 옵션 채우기
+      els.facility.innerHTML = '';
+      (s.facilities || []).forEach((name) => {
+        const opt = document.createElement('option');
+        opt.value = name; opt.textContent = name;
+        els.facility.appendChild(opt);
+      });
+      if (s.username) els.username.value = s.username;
+      if (s.password) els.password.value = s.password; // 마스크 값
+      if (s.facility) els.facility.value = s.facility;
+      if (s.checkin) els.checkin.value = s.checkin;
+      if (s.checkout) els.checkout.value = s.checkout;
+      if (s.interval_seconds) els.interval.value = secondsToMinutes(s.interval_seconds);
+    } catch (e) {
+      console.warn('settings load failed', e);
+    }
+  }
+
+  async function refreshStatus() {
+    try {
+      const r = await fetch('/api/status');
+      if (!r.ok) return;
+      const s = await r.json();
+      renderStatus(s);
+    } catch {}
+  }
+
+  async function startBot() {
+    els.btnStart.disabled = true;
+    const prevText = els.btnStart.textContent;
+    els.btnStart.textContent = '시작 중...';
+    try {
+      const r = await fetch('/api/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: els.username.value.trim(),
+          password: els.password.value,
+          facility: els.facility.value,
+          checkin: els.checkin.value,
+          checkout: els.checkout.value,
+          interval_seconds: minutesToSeconds(els.interval.value),
+        }),
+      });
+      if (r.status === 409) {
+        toast('이미 실행 중입니다', 'error');
+        return;
+      }
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({ detail: '시작 실패' }));
+        toast(err.detail || '시작 실패', 'error');
+        return;
+      }
+      const s = await r.json();
+      renderStatus(s);
+      toast('모니터링 시작', 'success');
+    } catch (e) {
+      toast('시작 실패: ' + e.message, 'error');
+    } finally {
+      els.btnStart.disabled = false;
+      els.btnStart.textContent = prevText;
+    }
+  }
+
+  async function stopBot() {
+    els.btnStop.disabled = true;
+    try {
+      const r = await fetch('/api/stop', { method: 'POST' });
+      if (r.ok) {
+        const s = await r.json();
+        renderStatus(s);
+        toast('중지됨', 'success');
+      }
+    } finally {
+      els.btnStop.disabled = false;
+    }
+  }
+
+  async function testSlack() {
+    els.btnSlack.disabled = true;
+    const prev = els.btnSlack.textContent;
+    els.btnSlack.textContent = '전송 중...';
+    try {
+      const r = await fetch('/api/slack/test', { method: 'POST' });
+      if (r.ok) toast('Slack 전송 성공', 'success');
+      else {
+        const err = await r.json().catch(() => ({ detail: '전송 실패' }));
+        toast('Slack 전송 실패: ' + (err.detail || ''), 'error');
+      }
+    } catch (e) {
+      toast('Slack 전송 실패: ' + e.message, 'error');
+    } finally {
+      els.btnSlack.disabled = false;
+      els.btnSlack.textContent = prev;
+    }
+  }
+
+  // ── Event wiring ─────────────────────────────────────────
+  els.btnStart.addEventListener('click', startBot);
+  els.btnStop.addEventListener('click', stopBot);
+  els.btnSlack.addEventListener('click', testSlack);
+
+  els.passwordToggle.addEventListener('click', () => {
+    const isPwd = els.password.type === 'password';
+    els.password.type = isPwd ? 'text' : 'password';
+    els.passwordToggle.textContent = isPwd ? '숨김' : '표시';
+    els.passwordToggle.setAttribute('aria-pressed', String(isPwd));
+  });
+
+  // 체크인 변경 시 체크아웃 자동 +1일
+  els.checkin.addEventListener('change', () => {
+    if (!els.checkin.value) return;
+    if (els.checkout.value && els.checkout.value > els.checkin.value) return;
+    const d = new Date(els.checkin.value + 'T00:00:00');
+    d.setDate(d.getDate() + 1);
+    els.checkout.value = d.toISOString().slice(0, 10);
+  });
+
+  // 초기화
+  loadSettings().then(refreshStatus);
+  connectWS();
+})();
+</script>
+
+</body>
+</html>

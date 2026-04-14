@@ -1,28 +1,42 @@
-# 서울특별시 연수원 자동 예약 (Yeonsu-Bot)
+# 서울특별시 연수원 자동 예약 (Yeonsu-Bot Web)
 
 ## 프로젝트 개요
 
-서울시 공무원 연수원(https://yeonsu.eseoul.go.kr/) 예약 가능 날짜를 주기적으로 모니터링하고, 빈방 발견 시 자동 예약하는 데스크톱 앱.
+서울시 공무원 연수원(https://yeonsu.eseoul.go.kr/) 예약 가능 날짜를 주기적으로 모니터링하고, 빈방 발견 시 자동 예약하는 **웹 앱** (FastAPI + WebSocket). 본인 1명 전용, 단일 슬롯 구조. Oracle Cloud Free Tier VM에 Docker로 배포.
+
+이전 CustomTkinter 데스크톱 버전에서 웹으로 전환됨. 비즈니스 로직(`checker.py`, `scheduler.py`, `notifier.py`, `facilities.py`)은 GUI 의존성이 없어 그대로 재사용하고 GUI 레이어만 FastAPI + HTML로 교체.
 
 ## 아키텍처
 
-- **main.py**: 진입점, 로깅 설정 후 GUI 실행
-- **gui.py**: CustomTkinter 기반 GUI. 설정/안내 탭, 상태 표시, 로그 영역. `MonitorScheduler`와 콜백으로 통신
-- **checker.py**: `BrowserSession` 클래스. Playwright로 로그인 → 연수원 선택 → 달력 조회 → 자동 예약 (7단계 플로우: 연수원 선택 → 달력 체크인/체크아웃 날짜 클릭 → hidden 필드 동기화 → 선택일로 예약하기 → 기관배정 팝업 닫기 → 객실선택하기 → 예약하기 → 예약안내 팝업 동의). Playwright 네이티브 클릭(trusted event) 사용. 체크아웃은 1박/다박 무관하게 항상 명시적 클릭하며, 다음날 예약 불가 시 사이트 자동 설정 허용. `check_in_day_hidden` → `check_in_day` 필드 동기화 필수. `stop_event`를 받아 주요 단계마다 중지 체크.
-- **scheduler.py**: `MonitorScheduler` 클래스. 워커 스레드에서 `BrowserSession`을 소유하고 주기적 체크 + 예약 시도. `stop_event`를 `book()`에 전달하여 즉시 중지 대응.
-- **notifier.py**: Slack Incoming Webhook 알림 (빈방 발견, 예약 성공, 테스트)
-- **config.py**: settings.json 저장/불러오기, 비밀번호 Base64 인코딩
-- **facilities.py**: 10개 연수원 이름↔코드 매핑
+- **main.py**: FastAPI 진입점 — uvicorn으로 `web_server:app` 실행
+- **web_server.py**: FastAPI 앱. `AppState`(scheduler + ws_clients + log_buffer + current_status + last_check_at), `WebSocketLogHandler`(로깅 → WS 브로드캐스트, `loop.call_soon_threadsafe()`로 워커 스레드 안전), lifespan 컨텍스트(종료 시 `scheduler.stop()` + join). REST: `/api/status`, `/api/settings`, `/api/start` (409), `/api/stop`, `/api/slack/test`. WebSocket: `/ws` (연결 시 log_buffer 즉시 전송).
+- **templates/index.html**: 단일 패널 UI (Vanilla JS). 상태+액션 → 폼 → 로그 3단 계층. 시작/중지 토글 버튼. 자동 스크롤 pause, 토스트 알림, 3초 WS 재연결. DESIGN.md Apple 시스템 토큰 적용.
+- **mockups/index.html**: 정적 디자인 목업 (참고용, 실제 앱 아님).
+- **checker.py**: `BrowserSession` 클래스. Playwright로 로그인 → 연수원 선택 → 달력 조회 → 자동 예약 (7단계 플로우: 연수원 선택 → 달력 체크인/체크아웃 날짜 클릭 → hidden 필드 동기화 → 선택일로 예약하기 → 기관배정 팝업 닫기 → 객실선택하기 → 예약하기 → 예약안내 팝업 동의). Playwright 네이티브 클릭(trusted event) 사용. 체크아웃은 1박/다박 무관하게 항상 명시적 클릭하며, 다음날 예약 불가 시 사이트 자동 설정 허용. `check_in_day_hidden` → `check_in_day` 필드 동기화 필수. `stop_event`를 받아 주요 단계마다 중지 체크. **Linux/Docker 환경에서는 시스템 Chrome/Edge가 없으면 Playwright 내장 Chromium으로 폴백**하며 `--no-sandbox --disable-dev-shm-usage` 옵션 적용.
+- **scheduler.py**: `MonitorScheduler` 클래스. 워커 스레드에서 `BrowserSession`을 소유하고 주기적 체크 + 예약 시도. `stop_event`를 `book()`에 전달하여 즉시 중지 대응. 변경 없음.
+- **notifier.py**: Slack Incoming Webhook 알림 (빈방 발견, 예약 성공/실패, 테스트). 변경 없음.
+- **config.py**: settings.json 저장/불러오기, 비밀번호 Base64 인코딩. **`SETTINGS_DIR` 환경변수**로 Docker 볼륨 경로 주입 가능.
+- **facilities.py**: 10개 연수원 이름↔코드 매핑. 변경 없음.
+- **plan.md / to-do.md / DESIGN.md**: 웹 전환 계획, 작업 목록, Apple 디자인 시스템.
 
 ## 실행 방법
 
 ```bash
+# 로컬 (Docker 없이)
 uv sync && uv run python main.py
+# → http://localhost:8000
+
+# Docker
+docker compose up --build
 ```
 
-## 빌드
+## 디자인
 
-GitHub Actions (`build-exe.yml`)로 Windows EXE 자동 빌드. `v*` 태그 push 또는 수동 실행.
+- Apple 시스템 기반 (SF Pro Text/Display, `#0071e3`, `#f5f5f7`, `#1d1d1f`)
+- 정보 계층: 상태+액션 → 폼 → 로그
+- 시작/중지는 같은 자리 토글, 예약 성공 시 자동 중지
+- Shadow 없음, flat 디자인 (배경색 대비로 분리)
+- 세부 토큰은 `DESIGN.md` 및 `plan.md` "디자인 시스템 토큰" 섹션 참조
 
 ## gstack
 

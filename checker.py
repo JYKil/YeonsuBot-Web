@@ -40,8 +40,12 @@ class BookingError(Exception):
     """예약 플로우 중 오류 발생."""
 
 
-def _detect_browser_channel() -> str:
-    """시스템에 설치된 Chrome 또는 Edge를 탐색하여 Playwright channel 이름을 반환한다."""
+def _detect_browser_channel() -> str | None:
+    """시스템에 설치된 Chrome 또는 Edge를 탐색하여 Playwright channel 이름을 반환한다.
+
+    못 찾으면 None 반환 (Playwright 내장 Chromium으로 폴백).
+    Linux/Docker 환경에서는 내장 Chromium이 기본이며, 이 함수는 항상 None.
+    """
     system = platform.system()
 
     if system == "Darwin":
@@ -83,10 +87,8 @@ def _detect_browser_channel() -> str:
                 logger.info("시스템 브라우저 사용: %s", channel)
                 return channel
 
-    raise BrowserNotFoundError(
-        "Chrome 또는 Edge 브라우저를 찾을 수 없습니다.\n"
-        "Google Chrome 또는 Microsoft Edge를 설치한 후 다시 시도해 주세요."
-    )
+    logger.info("시스템 브라우저 미발견, Playwright 내장 Chromium으로 폴백")
+    return None
 
 
 # JS: 달력에서 예약 가능 날짜 읽기
@@ -143,7 +145,13 @@ class BrowserSession:
 
         self._pw = sync_playwright().start()
         channel = _detect_browser_channel()
-        self._browser = self._pw.chromium.launch(headless=True, channel=channel)
+        launch_kwargs = {
+            "headless": True,
+            "args": ["--no-sandbox", "--disable-dev-shm-usage"],
+        }
+        if channel:
+            launch_kwargs["channel"] = channel
+        self._browser = self._pw.chromium.launch(**launch_kwargs)
         self._context = self._browser.new_context(
             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
         )

@@ -5,7 +5,12 @@ import base64
 import os
 import sys
 
-if getattr(sys, 'frozen', False):
+# SETTINGS_DIR 환경변수가 있으면 우선 사용 (Docker 볼륨 마운트)
+_env_dir = os.environ.get("SETTINGS_DIR")
+if _env_dir:
+    base_dir = _env_dir
+    os.makedirs(base_dir, exist_ok=True)
+elif getattr(sys, 'frozen', False):
     base_dir = os.path.dirname(sys.executable)
 else:
     base_dir = os.path.dirname(os.path.abspath(__file__))

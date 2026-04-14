@@ -241,6 +241,11 @@
     scroll-behavior: smooth;
   }
   .log-line { display: flex; gap: var(--space-3); padding: 2px 0; }
+  .log-separator {
+    height: var(--space-4);
+    border-top: 1px dashed rgba(255, 255, 255, 0.12);
+    margin: var(--space-2) 0;
+  }
   .log-time {
     color: var(--text-on-dark-dim);
     font-size: 12px; flex: 0 0 auto;
@@ -499,6 +504,21 @@
       els.logEmpty.remove();
       els.logEmpty = null;
     }
+
+    // 사이클 구분자
+    if (entry.separator) {
+      const sep = document.createElement('div');
+      sep.className = 'log-separator';
+      els.logStream.appendChild(sep);
+      while (els.logStream.children.length > 200) {
+        els.logStream.removeChild(els.logStream.firstChild);
+      }
+      if (state.autoScroll) {
+        els.logStream.scrollTop = els.logStream.scrollHeight;
+      }
+      return;
+    }
+
     const line = document.createElement('div');
     line.className = 'log-line';
     const msg = entry.message || '';

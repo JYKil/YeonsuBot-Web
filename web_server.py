@@ -45,6 +45,7 @@ class AppState:
         self.scheduler.on_booking_result = self._on_booking_result
         self.scheduler.on_error = self._on_error
         self.scheduler.on_check_result = self._on_check_result
+        self.scheduler.on_cycle_start = self._on_cycle_start
 
     # ── scheduler 콜백 (워커 스레드에서 호출됨) ──
 
@@ -63,6 +64,13 @@ class AppState:
     def _on_check_result(self, available: list | None, facility_code: str) -> None:
         self.last_check_at = datetime.now().strftime("%H:%M:%S")
         self._broadcast({"type": "status", "status": self.current_status, "last_check_at": self.last_check_at})
+
+    def _on_cycle_start(self, cycle: int) -> None:
+        # 2번째 사이클부터 로그에 시각적 구분자 삽입
+        if cycle > 1:
+            entry = {"type": "log", "message": "", "separator": True}
+            self.log_buffer.append(entry)
+            self._broadcast(entry)
 
     # ── WebSocket 브로드캐스트 ──
 
@@ -258,6 +266,11 @@ async def api_start(request: Request) -> JSONResponse:
 
     state.last_result = None
     state.last_check_at = None
+
+    # 새 세션 시작 — 기존 로그 초기화
+    state.log_buffer.clear()
+    await state._async_broadcast({"type": "clear"})
+
     state.scheduler.start(
         interval_seconds=interval_seconds,
         yeonsu_gbn=facility_code,

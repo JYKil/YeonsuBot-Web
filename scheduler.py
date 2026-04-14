@@ -4,7 +4,9 @@ import logging
 import threading
 from enum import Enum, auto
 
+import notifier
 from checker import BrowserSession, BookingError, LoginError, BrowserNotFoundError
+from facilities import get_facility_name
 
 logger = logging.getLogger(__name__)
 
@@ -33,12 +35,14 @@ class MonitorScheduler:
     self._stop_event: threading.Event | None = None
     self._running = False
     self._interval = 60
+    self._cycle_count = 0  # 현재 세션의 누적 체크 사이클 수
 
-    # 콜백 (GUI에서 설정, GUI 스레드에서 호출됨)
+    # 콜백 (GUI/웹 서버에서 설정, 워커 스레드에서 호출됨)
     self.on_check_result = None   # (available: list|None, facility: str) -> None
     self.on_booking_result = None  # (result: BookingResult, detail: str) -> None
     self.on_status_change = None   # (status: str) -> None
     self.on_error = None           # (error: Exception) -> None
+    self.on_cycle_start = None     # (cycle: int) -> None, 매 체크 사이클 진입 시
 
   @property
   def is_running(self) -> bool:
@@ -60,6 +64,7 @@ class MonitorScheduler:
 
     self._interval = interval_seconds
     self._running = True
+    self._cycle_count = 0  # 새 세션마다 리셋
     self._yeonsu_gbn = yeonsu_gbn
     self._target_dates = target_dates
     self._username = username
@@ -129,6 +134,13 @@ class MonitorScheduler:
     if stop_event.is_set():
       return
 
+    self._cycle_count += 1
+    if self.on_cycle_start:
+      try:
+        self.on_cycle_start(self._cycle_count)
+      except Exception as exc:
+        logger.warning("on_cycle_start 콜백 오류: %s", exc)
+
     self._notify_status("모니터링 중")
 
     if not self._target_dates:
@@ -170,7 +182,11 @@ class MonitorScheduler:
         success = session.book(self._yeonsu_gbn, self._target_dates, stop_event=stop_event)
         if success:
           logger.info("예약 성공!")
-          self._notify_status("예약 완료")
+          # UI 버튼 즉시 토글을 위해 _running 선반영 (finally에서 session.stop()이
+          # 브라우저 정리하는 동안 UI가 STOP 상태로 남지 않도록)
+          self._running = False
+          self._send_slack_success()
+          self._notify_status("중지됨")
           self._notify_booking_result(BookingResult.SUCCESS, self._target_dates[0])
           stop_event.set()  # 예약 성공 시 루프 종료
           return
@@ -182,8 +198,34 @@ class MonitorScheduler:
 
     # 모든 재시도 실패
     logger.warning("예약 재시도 모두 실패, 모니터링 계속")
+    self._send_slack_failure("재시도 모두 실패")
     self._notify_status("모니터링 중")
     self._notify_booking_result(BookingResult.FAILED, self._target_dates[0])
+
+  def _send_slack_success(self):
+    try:
+      notifier.send_booking_success(
+        notifier.SLACK_WEBHOOK_URL,
+        facility_name=get_facility_name(self._yeonsu_gbn),
+        booked_date=self._target_dates[0],
+        username=self._username,
+        checkin=self._target_dates[0],
+        checkout=self._target_dates[-1],
+      )
+    except Exception as exc:
+      logger.warning("Slack 성공 알림 실패: %s", exc)
+
+  def _send_slack_failure(self, reason: str):
+    try:
+      notifier.send_booking_failure(
+        notifier.SLACK_WEBHOOK_URL,
+        facility_name=get_facility_name(self._yeonsu_gbn),
+        booked_date=self._target_dates[0],
+        reason=reason,
+        username=self._username,
+      )
+    except Exception as exc:
+      logger.warning("Slack 실패 알림 실패: %s", exc)
 
   def _notify_status(self, status: str):
     if self.on_status_change:

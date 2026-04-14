@@ -363,6 +363,7 @@
         <input id="interval" type="number" value="2" min="1">
       </div>
       <button class="btn-secondary" id="btn-slack" type="button">Slack 테스트</button>
+      <button class="btn-secondary" id="btn-clear-logs" type="button">로그 지우기</button>
     </form>
   </section>
 
@@ -395,6 +396,7 @@
     btnStart: $('btn-start'),
     btnStop: $('btn-stop'),
     btnSlack: $('btn-slack'),
+    btnClearLogs: $('btn-clear-logs'),
     form: $('form'),
     username: $('username'),
     password: $('password'),
@@ -543,6 +545,19 @@
     }
   }
 
+  function clearLogUI() {
+    els.logStream.innerHTML = '';
+    const empty = document.createElement('div');
+    empty.className = 'log-empty';
+    empty.id = 'log-empty';
+    empty.textContent = '로그가 없습니다';
+    els.logStream.appendChild(empty);
+    els.logEmpty = empty;
+    state.autoScroll = true;
+    state.pendingLogCount = 0;
+    els.newLogsBtn.classList.remove('show');
+  }
+
   els.logStream.addEventListener('scroll', () => {
     const nearBottom =
       els.logStream.scrollHeight - els.logStream.scrollTop - els.logStream.clientHeight < 40;
@@ -578,6 +593,8 @@
       try { msg = JSON.parse(ev.data); } catch { return; }
       if (msg.type === 'log') {
         appendLog(msg);
+      } else if (msg.type === 'clear') {
+        clearLogUI();
       } else if (msg.type === 'status') {
         refreshStatus();
       } else if (msg.type === 'result') {
@@ -698,6 +715,24 @@
     }
   }
 
+  async function clearLogs() {
+    els.btnClearLogs.disabled = true;
+    try {
+      const r = await fetch('/api/logs/clear', { method: 'POST' });
+      if (r.ok) {
+        // 서버가 WS로 'clear' 를 브로드캐스트하지만, 로컬 즉시 반영도 안전하게
+        clearLogUI();
+        toast('로그 지움', 'success');
+      } else {
+        toast('로그 지우기 실패', 'error');
+      }
+    } catch (e) {
+      toast('로그 지우기 실패: ' + e.message, 'error');
+    } finally {
+      els.btnClearLogs.disabled = false;
+    }
+  }
+
   async function testSlack() {
     els.btnSlack.disabled = true;
     const prev = els.btnSlack.textContent;
@@ -721,6 +756,7 @@
   els.btnStart.addEventListener('click', startBot);
   els.btnStop.addEventListener('click', stopBot);
   els.btnSlack.addEventListener('click', testSlack);
+  els.btnClearLogs.addEventListener('click', clearLogs);
 
   els.passwordToggle.addEventListener('click', () => {
     const isPwd = els.password.type === 'password';

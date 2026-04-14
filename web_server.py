@@ -283,6 +283,13 @@ async def api_slack_test() -> JSONResponse:
     return JSONResponse({"ok": True})
 
 
+@app.post("/api/logs/clear")
+async def api_logs_clear() -> JSONResponse:
+    state.log_buffer.clear()
+    await state._async_broadcast({"type": "clear"})
+    return JSONResponse({"ok": True})
+
+
 # ── WebSocket ──
 
 @app.websocket("/ws")

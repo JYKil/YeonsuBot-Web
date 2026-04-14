@@ -360,7 +360,7 @@
       </div>
       <div class="field">
         <label for="interval">점검 주기 (분)</label>
-        <input id="interval" type="number" value="2" min="1">
+        <input id="interval" type="number" value="1" min="1">
       </div>
       <button class="btn-secondary" id="btn-slack" type="button">Slack 테스트</button>
       <button class="btn-secondary" id="btn-clear-logs" type="button">로그 지우기</button>
@@ -641,13 +641,18 @@
       if (s.password) els.password.value = s.password; // 마스크 값
       if (s.facility) els.facility.value = s.facility;
 
-      // 체크인/체크아웃: 저장값 우선, 없으면 오늘/내일 기본값 (로컬 타임존)
-      const fmt = (d) => d.toLocaleDateString('en-CA'); // YYYY-MM-DD
-      const today = new Date();
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      els.checkin.value  = s.checkin  || fmt(today);
-      els.checkout.value = s.checkout || fmt(tomorrow);
+      // 체크인/체크아웃: 저장된 값이 오늘 이후면 복원, 과거면 무시하고 오늘/내일
+      const fmt = (d) => d.toLocaleDateString('en-CA'); // YYYY-MM-DD, 로컬 타임존
+      const addDay = (dStr) => {
+        const d = new Date(dStr + 'T00:00:00');
+        d.setDate(d.getDate() + 1);
+        return fmt(d);
+      };
+      const todayStr = fmt(new Date());
+      const checkin  = (s.checkin  && s.checkin  >= todayStr) ? s.checkin : todayStr;
+      const checkout = (s.checkout && s.checkout >  checkin)  ? s.checkout : addDay(checkin);
+      els.checkin.value  = checkin;
+      els.checkout.value = checkout;
 
       if (s.interval_seconds) els.interval.value = secondsToMinutes(s.interval_seconds);
     } catch (e) {

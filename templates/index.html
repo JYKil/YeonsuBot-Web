@@ -129,8 +129,6 @@
     border-radius: var(--radius-button);
   }
 
-  .action-row { margin-top: var(--space-4); }
-
   button {
     font-family: inherit;
     border: none; cursor: pointer;
@@ -325,11 +323,6 @@
       <div class="status-sub" id="status-sub"></div>
     </div>
 
-    <div class="action-row">
-      <button class="btn-primary" id="btn-start" type="button">START</button>
-      <button class="btn-stop" id="btn-stop" type="button" style="display:none">STOP</button>
-    </div>
-
     <hr class="divider">
 
     <!-- Form -->
@@ -362,6 +355,10 @@
         <label for="interval">점검 주기 (분)</label>
         <input id="interval" type="number" value="1" min="1">
       </div>
+
+      <button class="btn-primary" id="btn-start" type="button">START</button>
+      <button class="btn-stop" id="btn-stop" type="button" style="display:none">STOP</button>
+
       <button class="btn-secondary" id="btn-slack" type="button">Slack 테스트</button>
       <button class="btn-secondary" id="btn-clear-logs" type="button">로그 지우기</button>
     </form>

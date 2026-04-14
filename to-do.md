@@ -150,6 +150,76 @@
   docker compose up -d --build
   ```
 
+### Oracle Cloud Free Tier VM 생성 가이드
+
+#### 1. 계정 생성
+
+URL: https://www.oracle.com/kr/cloud/free/
+
+1. "무료로 시작하기" (Start for free) 클릭
+2. 이메일 입력 → 국가 "대한민국" 선택 → 이메일 인증
+3. 계정 정보 입력 (이름, 주소)
+4. 휴대폰 SMS 인증 (필수)
+5. 결제 카드 등록 (필수, 해외결제 가능 카드 — 본인 인증용 $0 또는 ₩100 임시 승인. Always Free 리소스만 쓰면 과금 없음)
+6. 홈 리전 선택 — **Korea Central (Seoul)** 권장 (한 번 정하면 변경 불가)
+7. 계정 생성 완료 (5~10분 프로비저닝)
+
+> 팁: 카드 인증에서 자주 실패하면 VPN 끄고, 신한/KB 체크카드보다 삼성/현대 신용카드가 성공률이 높습니다.
+
+#### 2. VM (Compute Instance) 생성
+
+로그인 후 OCI 콘솔: https://cloud.oracle.com/
+
+**2-1. 인스턴스 생성 화면 진입**
+
+좌상단 햄버거 메뉴 → Compute → Instances → Create instance
+
+**2-2. 주요 설정**
+
+| 항목 | 값 |
+|---|---|
+| Name | `yeonsu-bot` |
+| Compartment | (root 그대로) |
+| Placement (AD) | 기본값 |
+| Image | **Canonical Ubuntu 22.04** (Change image에서 선택) |
+| Shape | **Ampere — VM.Standard.A1.Flex** (ARM, Always Free)<br>OCPU: 2~4, Memory: 12~24 GB (총 4 OCPU / 24 GB 무료) |
+| Network | 기본 VCN 자동 생성 허용 |
+| Public IP | Assign a public IPv4 address ✅ |
+| SSH keys | **Generate a key pair for me** → **Save private key** (.key 파일 꼭 다운로드, 재발급 불가) |
+| Boot volume | 기본 46.6 GB (무료 200 GB까지 가능) |
+
+> ⚠️ Ampere A1 용량 부족(Out of capacity) 에러가 자주 납니다. 나오면 **다른 AD로 바꿔서** 또는 **10~30분 후 재시도**. 정 안 되면 Shape을 **VM.Standard.E2.1.Micro** (AMD, 1 OCPU / 1 GB)로 대체 — Docker 돌리기엔 빡빡하지만 이 봇 정도는 가능.
+
+Create 클릭 → 1~2분 후 RUNNING 상태가 되면 Public IP 확인.
+
+#### 3. 접속 및 방화벽
+
+```bash
+chmod 600 ssh-key-xxx.key
+ssh -i ssh-key-xxx.key ubuntu@<Public-IP>
+```
+
+**포트 열기 (8000번 — FastAPI)** — 두 군데 모두 열어야 접속됩니다:
+
+1. **OCI 콘솔 Security List**: Networking → Virtual Cloud Networks → (VCN) → Subnet → Default Security List → Add Ingress Rule
+   - Source CIDR: `0.0.0.0/0`, Destination Port: `8000`
+2. **VM 내부 iptables** (Ubuntu는 기본 차단):
+   ```bash
+   sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport 8000 -j ACCEPT
+   sudo netfilter-persistent save
+   ```
+
+#### 4. Docker 설치 후 배포
+
+```bash
+sudo apt update && sudo apt install -y docker.io docker-compose-v2 git
+sudo usermod -aG docker ubuntu && newgrp docker
+git clone <your-repo> && cd YeonsuBot-Web
+docker compose up -d --build
+```
+
+접속: `http://<Public-IP>:8000`
+
 ---
 
 ## Phase 6: 검증

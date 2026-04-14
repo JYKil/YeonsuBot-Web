@@ -196,9 +196,8 @@ class MonitorScheduler:
           if stop_event.wait(3):
             return  # 중지 신호 수신
 
-    # 모든 재시도 실패
+    # 모든 재시도 실패 — Slack 실패 알림은 생략 (사용자 요청)
     logger.warning("예약 재시도 모두 실패, 모니터링 계속")
-    self._send_slack_failure("재시도 모두 실패")
     self._notify_status("모니터링 중")
     self._notify_booking_result(BookingResult.FAILED, self._target_dates[0])
 
@@ -214,18 +213,6 @@ class MonitorScheduler:
       )
     except Exception as exc:
       logger.warning("Slack 성공 알림 실패: %s", exc)
-
-  def _send_slack_failure(self, reason: str):
-    try:
-      notifier.send_booking_failure(
-        notifier.SLACK_WEBHOOK_URL,
-        facility_name=get_facility_name(self._yeonsu_gbn),
-        booked_date=self._target_dates[0],
-        reason=reason,
-        username=self._username,
-      )
-    except Exception as exc:
-      logger.warning("Slack 실패 알림 실패: %s", exc)
 
   def _notify_status(self, status: str):
     if self.on_status_change:

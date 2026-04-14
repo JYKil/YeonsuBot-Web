@@ -1,0 +1,15 @@
+.git
+.gitignore
+.github
+.claude
+.env
+.venv
+__pycache__
+*.pyc
+*.pyo
+data/
+settings.json
+mockups/
+docs/
+*.md
+!README.md

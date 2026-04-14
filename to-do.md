@@ -8,7 +8,7 @@
 | Phase 1 — 핵심 로직 | ✅ 완료 |
 | Phase 2 — FastAPI 백엔드 | ✅ 완료 |
 | Phase 3 — 프론트엔드 | ✅ 완료 |
-| Phase 4 — 패키지 & Docker | 🟡 requirements.txt 완료, Dockerfile/compose/env.example/gui.py 삭제 남음 |
+| Phase 4 — 패키지 & Docker | ✅ 완료 |
 | Phase 5 — Oracle Cloud 배포 | ⬜ 대기 |
 | Phase 6 — 검증 | ⬜ 대기 |
 
@@ -101,26 +101,32 @@
 
 ---
 
-## Phase 4: 패키지 및 Docker
+## Phase 4: 패키지 및 Docker ✅
 
 - [x] **`requirements.txt`** 업데이트
   - 추가: `fastapi>=0.109.0`, `uvicorn[standard]>=0.27.0`
   - 제거: `customtkinter`, `tkcalendar`, `pyinstaller`
 
-- [ ] **`Dockerfile`** 신규 생성
+- [x] **`Dockerfile`** 신규 생성
   - 베이스: `mcr.microsoft.com/playwright/python:v1.40.0-jammy`
-  - `requirements.txt` 설치
-  - `/data` 볼륨, `SETTINGS_DIR` 환경변수 설정
-  - `EXPOSE 8000`, CMD 설정
+  - `PYTHONUNBUFFERED`, `PIP_NO_CACHE_DIR` 최적화
+  - 의존성 레이어 캐시 (requirements.txt 먼저 복사)
+  - `/data` 볼륨 + `SETTINGS_DIR=/data` 환경변수
+  - `EXPOSE 8000`, `CMD ["python", "main.py"]`
 
-- [ ] **`docker-compose.yml`** 신규 생성
+- [x] **`docker-compose.yml`** 신규 생성
   - `restart: unless-stopped`
   - `shm_size: "256mb"` (단일 Chromium 인스턴스)
   - `./data:/data` 볼륨 마운트
+  - `HOST`/`PORT`/`SETTINGS_DIR` 환경변수
 
-- [ ] **`.env.example`** 신규 생성
+- [x] **`.dockerignore`** 신규 생성 — `.git`, `.venv`, `__pycache__`, `mockups/`, `*.md` 등 제외 (이미지 크기 축소)
 
-- [ ] **`gui.py`** 삭제
+- [x] **`.env.example`** 신규 생성 — `SETTINGS_DIR`, `HOST`, `PORT`
+
+- [x] **`gui.py`** 삭제
+
+- [x] **`.github/workflows/build-exe.yml`** 삭제 — Windows EXE 빌드 워크플로는 웹 버전에 불필요
 
 ---
 

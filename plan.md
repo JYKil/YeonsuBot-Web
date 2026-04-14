@@ -10,7 +10,7 @@
 | Phase 2 — FastAPI 백엔드 (web_server/main) | ✅ 완료 | `ed2a137` |
 | Phase 3 — 프론트엔드 (templates/index.html) | ✅ 완료 | `ed2a137` |
 | 선행 — `/review` (pre-landing) | ✅ 완료 | P2 버그 2개 수정 `4a9890c` |
-| Phase 4 — 패키지 & Docker | 🟡 부분 | requirements.txt 완료, Dockerfile/compose/env.example/gui.py 삭제 남음 |
+| Phase 4 — 패키지 & Docker | ✅ 완료 | Dockerfile + docker-compose.yml + .dockerignore + .env.example, gui.py & build-exe.yml 삭제 |
 | Phase 5 — Oracle Cloud 배포 | ⬜ 대기 | |
 | Phase 6 — 검증 | ⬜ 대기 | 로컬 동작 확인 + VM 배포 검증 |
 

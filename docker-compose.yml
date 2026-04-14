@@ -1,0 +1,16 @@
+services:
+  yeonsubot:
+    build: .
+    image: yeonsubot-web:latest
+    container_name: yeonsubot
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/data
+    environment:
+      - SETTINGS_DIR=/data
+      - HOST=0.0.0.0
+      - PORT=8000
+    # 단일 Chromium 인스턴스 — 기본 64MB 로는 부족
+    shm_size: "256mb"

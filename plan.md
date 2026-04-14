@@ -21,6 +21,8 @@ YeonsuBot-Web/
 ├── facilities.py            ← 변경 없음
 ├── templates/
 │   └── index.html           ← 단일 패널 UI (Vanilla JS)
+├── mockups/
+│   └── index.html           ← 정적 디자인 목업 (참고용, 실제 앱 아님)
 ├── requirements.txt         ← fastapi, uvicorn 추가 / GUI 패키지 제거
 ├── Dockerfile
 ├── docker-compose.yml
@@ -39,7 +41,8 @@ AppState
 ├── scheduler: MonitorScheduler
 ├── ws_clients: set[WebSocket]
 ├── log_buffer: deque(maxlen=200)
-└── current_status: str
+├── current_status: str
+└── last_check_at: datetime | None
 ```
 
 **데이터 플로우:**
@@ -49,7 +52,7 @@ AppState
 
 POST /api/start  → AppState.scheduler.start()
 POST /api/stop   → AppState.scheduler.stop()
-GET  /api/status → {running, status, last_result}
+GET  /api/status → {running, status, last_check_at, next_check_at, target}
 ```
 
 ### 백엔드 (FastAPI)
@@ -65,11 +68,11 @@ GET  /api/status → {running, status, last_result}
 | Method | Path | 설명 |
 |--------|------|------|
 | `GET`  | `/` | index.html 반환 |
-| `GET`  | `/api/status` | `{running, status, last_result}` 반환 |
+| `GET`  | `/api/status` | `{running, status, last_check_at, next_check_at, target}` 반환 |
 | `GET`  | `/api/settings` | settings 로드 (비밀번호 마스킹) |
 | `POST` | `/api/start` | 설정 저장 + `scheduler.start()`. 이미 실행 중이면 409 |
 | `POST` | `/api/stop` | `scheduler.stop()` |
-| `POST` | `/api/slack/test` | Slack 웹훅 테스트 메시지 |
+| `POST` | `/api/slack/test` | Slack 웹훅 테스트 |
 
 ### WebSocket
 
@@ -79,76 +82,174 @@ GET  /api/status → {running, status, last_result}
 - 서버 → 클라이언트 메시지:
   ```json
   {"type": "log",    "message": "10:05:28 [INFO] 로그인 중..."}
-  {"type": "status", "status": "모니터링 중"}
+  {"type": "status", "status": "모니터링 중", "last_check_at": "09:23", "next_check_at": "09:25"}
   {"type": "result", "result": "SUCCESS", "detail": "20241201"}
   ```
 
-### 프론트엔드 (단일 패널, Vanilla JS)
+---
+
+## 프론트엔드 (단일 패널, Vanilla JS)
+
+### 정보 계층 (시선 1→2→3 순서)
+
+1. **상태 뱃지 + 액션 버튼** — "지금 돌아가는지, 나는 뭘 누르면 되는지"
+2. **설정 폼** — "뭘 노리고 있는지"
+3. **로그 뷰어** — "지금까지 뭐 했는지"
+
+이 순서대로 액션 버튼을 폼 **위**에 배치한다.
+
+### 레이아웃
 
 ```
 ┌──────────────────────────────────────────────────────────┐
 │  YeonsuBot                                                │  ← 다크 nav (rgba(0,0,0,0.8) + blur)
 ├─────────────────────────┬────────────────────────────────┤
-│  설정 패널 (40%)         │  로그 뷰어 (60%)               │
-│                          │                                │
-│  ● 실행중                │  2024-04-24 09:02:44 booking  │
-│                          │  2024-04-24 09:02:42 attempt  │
-│  연수원: 신구로 연수원    │  2024-04-24 09:00:32 checking │
-│  체크인: 2024-05-01      │  2024-04-24 09:00:02 success  │
-│  체크아웃: 2024-05-02    │                                │
-│  점검주기: 2분           │  (어두운 배경 #1d1d1f,        │
-│                          │   모노스페이스, 자동 스크롤)   │
+│  ● 모니터링 중           │  09:02:44  booking attempt    │
+│  마지막: 09:23           │  09:02:42  attempting...      │
+│  다음: 09:25             │  09:00:32  checking 5/01      │
+│  대상: 신구로 5/1~5/2     │  09:00:02  login success      │
 │  [      STOP      ]      │                                │
+│  ──────────────────      │  (#1d1d1f, SF Mono 13px,      │
+│  연수원: 신구로 연수원    │   자동 스크롤)                 │
+│  체크인: 2024-05-01      │                                │
+│  체크아웃: 2024-05-02    │                                │
+│  점검주기: 2분           │                                │
+│  [Slack 테스트]          │                                │
 └─────────────────────────┴────────────────────────────────┘
+   설정 패널 (40%, flat)        로그 뷰어 (60%, flat)
 ```
 
-**디자인 시스템 토큰** (DESIGN.md Apple 시스템 적용):
+**시작/중지 버튼은 같은 자리에서 토글.** 실행 상태에 따라 START 또는 STOP 둘 중 하나만 노출.
+
+### 디자인 시스템 토큰
+
+#### 1. Color (DESIGN.md 매핑)
 
 | 요소 | 값 |
 |------|-----|
 | 페이지 배경 | `#f5f5f7` |
-| 네비게이션 | `rgba(0,0,0,0.8)` + `backdrop-filter: blur(20px)` |
+| 네비게이션 | `rgba(0,0,0,0.8)` + `backdrop-filter: saturate(180%) blur(20px)` |
 | 설정 패널 배경 | `#ffffff` |
 | 로그 뷰어 배경 | `#1d1d1f` (Dark Surface 1) |
-| 로그 텍스트 | `#ffffff`, 13px monospace |
-| 시작 버튼 | `#0071e3` bg, white text, 8px radius |
-| 중지 버튼 | `#1d1d1f` bg, white text, 8px radius |
-| 카드 shadow | `rgba(0,0,0,0.22) 3px 5px 30px` |
-| 폰트 | SF Pro Text (fallback: Helvetica Neue, Arial) |
+| 본문 텍스트 (light) | `#1d1d1f` |
+| 보조 텍스트 (light) | `rgba(0, 0, 0, 0.8)` |
+| 로그 텍스트 | `#ffffff` |
+| 시작 버튼 | bg `#0071e3`, text `#ffffff` |
+| 중지 버튼 | bg `#1d1d1f`, text `#ffffff` |
+| Focus ring | `2px solid #0071e3` |
+| 상태 dot — 실행중 | `#34c759` (Apple Green, 시스템 색) |
+| 상태 dot — 중지 | `rgba(0, 0, 0, 0.48)` |
+| 상태 dot — 오류 | `#ff3b30` (Apple Red, 시스템 색) |
+| 예약완료 badge | `#0071e3` bg, `#ffffff` text |
 
-**상태 표시** (색 + 텍스트 동시 — 접근성):
+> **Shadow 사용 안 함.** 설정 패널·로그 뷰어 모두 flat. DESIGN.md "shadow는 거의 안 씀" 원칙. 깊이 분리는 배경색 대비(`#ffffff` ↔ `#1d1d1f`)로만 한다.
+
+#### 2. Typography (DESIGN.md 행 매핑)
+
+| 요소 | DESIGN.md 행 | 사양 |
+|------|---|---|
+| nav 제목 "YeonsuBot" | Body Emphasis | SF Pro Text · 17px · 600 · line-height 1.24 · letter-spacing -0.374px |
+| 상태 뱃지 텍스트 ("모니터링 중") | Body Emphasis | SF Pro Text · 17px · 600 · 1.24 · -0.374px |
+| 보조 라인 ("마지막: 09:23 …") | Caption | SF Pro Text · 14px · 400 · 1.29 · -0.224px |
+| 폼 라벨 ("연수원") | Caption Bold | SF Pro Text · 14px · 600 · 1.29 · -0.224px |
+| 폼 입력값 | Body | SF Pro Text · 17px · 400 · 1.47 · -0.374px |
+| 시작/중지 버튼 텍스트 | Button | SF Pro Text · 17px · 400 · line-height 1.0 (상하 padding으로 높이 확보) |
+| 로그 본문 | (신규) | SF Mono · 13px · 400 · 1.5 |
+| 로그 타임스탬프 | Micro | SF Mono · 12px · 400 · 1.33 · -0.12px (`rgba(255,255,255,0.6)`) |
+| 예약완료 badge | Caption Bold | SF Pro Text · 14px · 600 · 1.29 · -0.224px |
+
+폰트 fallback: `"SF Pro Text", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif` / 모노: `"SF Mono", Menlo, Monaco, "Courier New", monospace`
+
+#### 3. Spacing & Radius (DESIGN.md 8px base)
+
+| 토큰 | 값 | 사용처 |
+|---|---|---|
+| `space-1` | 4px | 인라인 미세 갭 (dot ↔ 텍스트) |
+| `space-2` | 8px | 폼 라벨 ↔ 입력 |
+| `space-3` | 12px | 인풋 내부 padding-y |
+| `space-4` | 16px | 폼 행 간격, 카드 내부 좌우 padding |
+| `space-5` | 24px | 섹션 간격 (액션 ↔ 폼 구분선) |
+| `space-6` | 32px | 패널 내부 외곽 padding |
+| `radius-input` | 11px | 폼 인풋, Slack 테스트 버튼 |
+| `radius-button` | 8px | 시작/중지 버튼, 예약완료 badge |
+| `radius-dot` | 50% | 상태 dot |
+| `radius-pill` | 980px | (현재 미사용, 향후 inline CTA용) |
+
+### 상태 표시 (색 + 텍스트 동시 — 접근성)
 
 | 상태 | 표시 |
 |------|------|
-| 실행중 | 초록 dot + "실행중" |
-| 중지 | 회색 dot + "중지" |
+| 실행중 | `#34c759` dot + "모니터링 중" + 보조 라인 |
+| 중지 | `rgba(0,0,0,0.48)` dot + "중지" |
 | 예약완료 | `#0071e3` badge + "예약완료 YYYY.MM.DD" |
-| 오류 | 빨간 dot + "오류 발생" |
-| 예약 시도중 | 파란 dot (애니메이션) + "예약 시도 중..." |
+| 오류 | `#ff3b30` dot + "오류 발생" + 1줄 사유 |
+| 예약 시도중 | `#0071e3` dot (1.6s pulse) + "예약 시도 중..." |
 
-**상호작용 상태:**
+> **Reduced motion**: `@media (prefers-reduced-motion: reduce)` 시 pulse 애니메이션 정적 dot 으로 대체.
+
+### 보조 정보 라인 (장시간 대기 UX 핵심)
+
+상태 뱃지 바로 아래, 실행 중일 때만 표시:
+
+```
+마지막 확인: 09:23 · 다음 확인: 09:25 · 대상: 신구로 5/1~5/2
+```
+
+봇은 사용자가 페이지를 열어두고 수 시간 기다리는 시나리오가 90%다. 이 한 줄이 "살아있다"는 신뢰 신호이자 새로고침 욕구를 줄이는 가장 강한 레버.
+
+### 인터랙션 상태 (모든 기능)
 
 | 기능 | LOADING | EMPTY | ERROR | SUCCESS |
 |------|---------|-------|-------|---------|
-| 봇 상태 | gray dot + spinning | — | 빨간 dot + 텍스트 | 초록 dot |
-| 로그 뷰어 | "연결 중..." | "로그가 없습니다" | "연결 끊김. 재시도 중..." | 스트리밍 |
-| 설정 폼 | 버튼 disabled | 기본값 placeholder | 인라인 오류 | 실행 시작 |
+| 첫 로드 (설정 없음) | "불러오는 중..." 폼 disabled | 폼 placeholder + "위 항목을 입력하고 시작을 누르세요" 안내 | — | 저장된 값 자동 채움 |
+| 봇 상태 | gray dot + spinning | — | 빨간 dot + 사유 1줄 | 초록 dot + 보조 라인 |
+| 시작 버튼 | 버튼 disabled + 인라인 spinner ("시작 중...") | — | 인라인 토스트 ("이미 실행 중입니다" — 409) | 버튼이 STOP 으로 토글 |
+| 로그 뷰어 | "연결 중..." | "로그가 없습니다" | "연결 끊김. 3초 후 재시도..." (인라인 상단 배너) | 스트리밍 |
+| 로그 자동 스크롤 | — | — | — | 사용자가 위로 스크롤 시 autoscroll pause + 우하단 "↓ 새 로그 N건" 버튼 노출 |
+| Slack 테스트 | 버튼 disabled + spinner | — | 인라인 토스트 (빨강, "전송 실패: <사유>") | 인라인 토스트 (초록, "전송 성공") · 3초 후 자동 사라짐 |
+| 설정 폼 | — | placeholder | 인풋별 인라인 오류 메시지 | 실행 시작 |
 
-**동작 규칙:**
-- 예약 성공 시 **자동 중지** + "예약완료" badge (중복 예약 방지)
-- 페이지 로드 시 `GET /api/status` → 현재 상태 동기화
+### 사용자 저널 (감정 곡선)
+
+| Step | 사용자 행동 | 감정 | plan 대응 |
+|---|---|---|---|
+| 1 | 페이지 첫 진입 | "어떻게 시작하지?" | 빈 상태 안내 + placeholder |
+| 2 | 설정 입력 | "이거 맞나?" | 인풋별 검증 + 오류 인라인 |
+| 3 | [시작] 클릭 | "되고 있나?" | 버튼 spinner + status "시작 중..." |
+| 4 | 로그 흐르기 시작 | "오 살아있다" | 실시간 WS 스트리밍 |
+| 5 | **장시간 대기 (수 시간)** | **"지금 뭐 함?"** | **보조 라인: 마지막/다음/대상 — UX 핵심** |
+| 6 | 예약 성공 알림 | "와 됐다!" | 자동 중지 + "예약완료" badge + Slack 알림 |
+| 7 | 다음에 또 옴 | "이전 설정 그대로?" | settings.json 영속, 폼 자동 채움 |
+
+### 동작 규칙
+
+- 시작/중지 버튼은 **같은 자리에서 토글** — 실행 중이면 STOP 만, 중지면 START 만
+- 예약 성공 시 봇 **자동 중지** + "예약완료" badge (중복 예약 방지). 새 설정 입력 후 시작 누르면 badge 사라짐
+- 페이지 로드 시 `GET /api/status` → 현재 상태 + 보조 라인 동기화
 - WS 끊김 시 3초 후 자동 재연결 + `log_buffer` 즉시 수신
-- 이미 실행 중인 상태에서 `/api/start` 호출 시 409 반환
+- 이미 실행 중인 상태에서 `/api/start` 호출 시 409 → 인라인 토스트
+- 로그 자동 스크롤은 사용자가 위로 스크롤하면 일시정지, "↓ 새 로그" 버튼으로 재개
 
-**반응형:**
-- Desktop (1070px+): 설정 40% + 로그 60%
-- Tablet (640-1070px): 설정 패널 축소
-- Mobile (< 640px): 설정/로그 세로 스택
+### 반응형
 
-**접근성:**
-- 상태 뱃지: `aria-label`, `role="status"`
-- 로그 영역: `aria-live="polite"`
-- 모든 버튼 최소 44px 터치 타겟
+| Breakpoint | 레이아웃 |
+|---|---|
+| Desktop (1070px+) | 설정 40% + 로그 60% 좌우 분할 |
+| Tablet (640-1070px) | 설정 패널 폭 축소 (320px 고정), 로그 나머지 |
+| Mobile (< 640px) | 세로 스택. 설정 위 (auto), 로그 아래 (`min-height: 240px`, viewport 50%) |
+
+### 접근성
+
+- 상태 뱃지: `role="status"`, `aria-live="polite"`, `aria-label`에 색에 의존하지 않는 텍스트 ("모니터링 중, 마지막 확인 09:23")
+- 로그 영역: `aria-live="polite"`, 사용자 스크롤 시 라이브 영역 일시 갱신 중단
+- 모든 인터랙티브 요소: keyboard focus 시 `outline: 2px solid #0071e3; outline-offset: 2px`
+- Tab 순서: 폼 인풋(연수원→체크인→체크아웃→점검주기) → START/STOP → Slack 테스트
+- 모든 버튼 최소 44px 터치 타겟 (padding 으로 확보)
+- Color contrast 검증:
+  - 로그 텍스트 `#ffffff` on `#1d1d1f` = **16.0:1** (AAA)
+  - 시작 버튼 텍스트 `#ffffff` on `#0071e3` = **4.6:1** (AA)
+  - 본문 `#1d1d1f` on `#ffffff` = **17.4:1** (AAA)
+- `prefers-reduced-motion: reduce` 시 모든 애니메이션(pulse, spinner) 정적 표시
 
 ---
 
@@ -181,10 +282,7 @@ SETTINGS_FILE = os.path.join(base_dir, "settings.json")
 # load() / save() 시그니처 변경 없음
 ```
 
-### `notifier.py`
-**변경 없음.**
-
-### `scheduler.py`, `facilities.py`
+### `notifier.py`, `scheduler.py`, `facilities.py`
 **변경 없음.**
 
 ---
@@ -259,15 +357,27 @@ docker compose up -d --build
 - 다중 슬롯/다중 계정 동시 실행 (1슬롯 고정)
 - 웹 인증/로그인 기능 (본인 전용 전제)
 - HTTPS 자동 설정
-- 동시 접속 충돌 방지 (한 번에 한 사람이 쓴다는 전제 — 여러 탭에서 start 호출 시 409 반환으로 충분)
+- 동시 접속 충돌 방지 (한 번에 한 사람이 쓴다는 전제 — 여러 탭에서 start 호출 시 409 응답으로 충분)
+- 다크모드 토글 (페이지는 light 고정, 로그 영역만 dark 카드)
 
 ---
 
 ## 검증
 1. `docker compose up -d` 후 `http://localhost:8000` 접속
-2. 설정 입력 → [시작] → 로그 "로그인 중..." → "모니터링 중" 확인
-3. [중지] → 상태 "중지됨" 확인
-4. [Slack 테스트] → 웹훅 메시지 수신 확인
-5. 페이지 새로고침 → 상태 및 로그 버퍼 복원 확인
-6. 실행 중 `/api/start` 재호출 → 409 확인
-7. Oracle Cloud VM 동일 절차 반복
+2. 첫 로드: 빈 상태 안내 표시 확인
+3. 설정 입력 → [시작] → 버튼 spinner → 상태 "모니터링 중" + 보조 라인 표시 확인
+4. [중지] → 상태 "중지", 버튼 START 로 토글 확인
+5. 실행 중 `/api/start` 재호출 → 409 + 인라인 토스트 확인
+6. [Slack 테스트] → 성공 토스트 + 웹훅 메시지 수신 확인
+7. 페이지 새로고침 → 상태 + 로그 버퍼 + 보조 라인 복원 확인
+8. WS 강제 끊김 → 인라인 배너 + 3초 후 자동 재연결 확인
+9. 로그 위로 스크롤 → autoscroll pause + "↓ 새 로그" 버튼 확인
+10. 키보드 Tab → focus ring + 의도된 순서 확인
+11. 모바일 viewport (375px) → 세로 스택 + 로그 영역 240px 이상 확인
+12. Oracle Cloud VM 동일 절차 반복
+
+---
+
+## 디자인 목업
+
+`mockups/index.html` — 정적 HTML 목업. 실제 앱이 아니라 디자인 토큰/레이아웃/상태 표현 검증용. 브라우저로 열어 시각 확인.

@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>YeonsuBot — Design Mockup</title>
+<style>
+  :root {
+    --bg: #f5f5f7;
+    --panel: #ffffff;
+    --log-bg: #1d1d1f;
+    --text: #1d1d1f;
+    --text-secondary: rgba(0, 0, 0, 0.8);
+    --text-tertiary: rgba(0, 0, 0, 0.48);
+    --text-on-dark: #ffffff;
+    --text-on-dark-dim: rgba(255, 255, 255, 0.6);
+    --accent: #0071e3;
+    --green: #34c759;
+    --red: #ff3b30;
+    --nav-bg: rgba(0, 0, 0, 0.8);
+    --hairline: rgba(0, 0, 0, 0.08);
+
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 24px;
+    --space-6: 32px;
+
+    --radius-input: 11px;
+    --radius-button: 8px;
+
+    --font-sans: "SF Pro Text", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif;
+    --font-mono: "SF Mono", Menlo, Monaco, "Courier New", monospace;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font-sans);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 17px;
+    line-height: 1.47;
+    letter-spacing: -0.374px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* ───── Nav ───── */
+  .nav {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    height: 48px;
+    background: var(--nav-bg);
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    color: var(--text-on-dark);
+    display: flex;
+    align-items: center;
+    padding: 0 var(--space-5);
+  }
+  .nav-title {
+    font-size: 17px;
+    font-weight: 600;
+    line-height: 1.24;
+    letter-spacing: -0.374px;
+  }
+
+  /* ───── Layout ───── */
+  .shell {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: var(--space-6) var(--space-5);
+    display: grid;
+    grid-template-columns: 40% 1fr;
+    gap: var(--space-5);
+    min-height: calc(100vh - 48px);
+  }
+
+  .panel {
+    background: var(--panel);
+    border-radius: var(--radius-input);
+    padding: var(--space-6);
+  }
+
+  .log-card {
+    background: var(--log-bg);
+    border-radius: var(--radius-input);
+    padding: var(--space-5);
+    color: var(--text-on-dark);
+    display: flex;
+    flex-direction: column;
+    min-height: 480px;
+    overflow: hidden;
+  }
+
+  /* ───── Status block (priority 1) ───── */
+  .status-block { display: flex; flex-direction: column; gap: var(--space-2); }
+  .status-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex: 0 0 auto;
+  }
+  .dot.green { background: var(--green); }
+  .dot.gray  { background: var(--text-tertiary); }
+  .dot.red   { background: var(--red); }
+  .dot.blue  {
+    background: var(--accent);
+    animation: pulse 1.6s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%      { opacity: 0.55; transform: scale(0.85); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .dot.blue { animation: none; }
+  }
+  .status-label {
+    font-size: 17px;
+    font-weight: 600;
+    line-height: 1.24;
+    letter-spacing: -0.374px;
+  }
+  .status-sub {
+    font-size: 14px;
+    line-height: 1.29;
+    letter-spacing: -0.224px;
+    color: var(--text-secondary);
+  }
+
+  .action-row { margin-top: var(--space-4); }
+  button {
+    font-family: inherit;
+    border: none;
+    cursor: pointer;
+    font-size: 17px;
+    font-weight: 400;
+    letter-spacing: -0.374px;
+  }
+  button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .btn-primary {
+    width: 100%;
+    background: var(--accent);
+    color: #fff;
+    border-radius: var(--radius-button);
+    padding: 14px var(--space-4);
+    min-height: 48px;
+  }
+  .btn-stop {
+    width: 100%;
+    background: var(--text);
+    color: #fff;
+    border-radius: var(--radius-button);
+    padding: 14px var(--space-4);
+    min-height: 48px;
+  }
+  .btn-secondary {
+    width: 100%;
+    background: #fafafc;
+    color: var(--text-secondary);
+    border-radius: var(--radius-input);
+    padding: 12px var(--space-4);
+    min-height: 44px;
+    border: 1px solid var(--hairline);
+    font-size: 15px;
+  }
+
+  .divider {
+    border: 0;
+    border-top: 1px solid var(--hairline);
+    margin: var(--space-5) 0;
+  }
+
+  /* ───── Form ───── */
+  .form { display: flex; flex-direction: column; gap: var(--space-4); }
+  .field { display: flex; flex-direction: column; gap: var(--space-2); }
+  label {
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.29;
+    letter-spacing: -0.224px;
+    color: var(--text-secondary);
+  }
+  input, select {
+    font-family: inherit;
+    font-size: 17px;
+    line-height: 1.47;
+    letter-spacing: -0.374px;
+    color: var(--text);
+    background: #fafafc;
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-input);
+    padding: 12px 14px;
+    min-height: 44px;
+  }
+  input:focus, select:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    background: #fff;
+  }
+
+  /* ───── Log viewer ───── */
+  .log-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-3);
+    color: var(--text-on-dark-dim);
+    font-size: 12px;
+    letter-spacing: -0.12px;
+  }
+  .log-stream {
+    flex: 1;
+    overflow-y: auto;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.5;
+    letter-spacing: 0;
+  }
+  .log-line { display: flex; gap: var(--space-3); padding: 2px 0; }
+  .log-time {
+    color: var(--text-on-dark-dim);
+    font-size: 12px;
+    flex: 0 0 auto;
+  }
+  .log-msg { color: var(--text-on-dark); }
+  .log-msg.success { color: var(--green); }
+  .log-msg.warn    { color: #ffcc00; }
+  .log-msg.error   { color: var(--red); }
+
+  /* ───── Variants strip (mockup-only) ───── */
+  .variants {
+    max-width: 1200px;
+    margin: var(--space-6) auto var(--space-6);
+    padding: 0 var(--space-5);
+  }
+  .variants h2 {
+    font-size: 24px;
+    font-weight: 600;
+    margin: 0 0 var(--space-4);
+    letter-spacing: -0.5px;
+  }
+  .variants p {
+    color: var(--text-secondary);
+    font-size: 14px;
+    margin: 0 0 var(--space-5);
+  }
+  .state-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: var(--space-4);
+  }
+  .state-card {
+    background: var(--panel);
+    border-radius: var(--radius-input);
+    padding: var(--space-4);
+  }
+  .state-card .caption {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    margin-bottom: var(--space-3);
+  }
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    background: var(--accent);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: -0.224px;
+    padding: 6px 10px;
+    border-radius: var(--radius-button);
+  }
+  .toast {
+    display: inline-block;
+    padding: 10px 14px;
+    border-radius: var(--radius-input);
+    font-size: 14px;
+    letter-spacing: -0.224px;
+  }
+  .toast.success { background: rgba(52, 199, 89, 0.12); color: #1d6e34; }
+  .toast.error   { background: rgba(255, 59, 48, 0.12); color: #a51810; }
+  .empty-hint {
+    color: var(--text-tertiary);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  /* ───── Responsive ───── */
+  @media (max-width: 1070px) {
+    .shell { grid-template-columns: 320px 1fr; }
+  }
+  @media (max-width: 640px) {
+    .shell {
+      grid-template-columns: 1fr;
+      padding: var(--space-4);
+      gap: var(--space-4);
+    }
+    .panel, .log-card { padding: var(--space-4); }
+    .log-card { min-height: 240px; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-title">YeonsuBot</div>
+</nav>
+
+<main class="shell">
+  <!-- ─── Settings panel (40%) ─── -->
+  <section class="panel" aria-label="설정 패널">
+    <!-- 1순위: 상태 + 액션 -->
+    <div class="status-block" role="status" aria-live="polite"
+         aria-label="모니터링 중, 마지막 확인 09:23, 다음 확인 09:25">
+      <div class="status-row">
+        <span class="dot green" aria-hidden="true"></span>
+        <span class="status-label">모니터링 중</span>
+      </div>
+      <div class="status-sub">
+        마지막 확인: 09:23 · 다음 확인: 09:25 · 대상: 신구로 5/1~5/2
+      </div>
+    </div>
+
+    <div class="action-row">
+      <button class="btn-stop" type="button">STOP</button>
+    </div>
+
+    <hr class="divider">
+
+    <!-- 2순위: 폼 -->
+    <form class="form" onsubmit="return false">
+      <div class="field">
+        <label for="facility">연수원</label>
+        <select id="facility">
+          <option>신구로 연수원</option>
+          <option>대청 연수원</option>
+          <option>강북 연수원</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="checkin">체크인</label>
+        <input id="checkin" type="date" value="2024-05-01">
+      </div>
+      <div class="field">
+        <label for="checkout">체크아웃</label>
+        <input id="checkout" type="date" value="2024-05-02">
+      </div>
+      <div class="field">
+        <label for="interval">점검 주기 (분)</label>
+        <input id="interval" type="number" value="2" min="1">
+      </div>
+      <button class="btn-secondary" type="button">Slack 테스트</button>
+    </form>
+  </section>
+
+  <!-- ─── Log viewer (60%) ─── -->
+  <section class="log-card" aria-label="로그 뷰어">
+    <div class="log-header">
+      <span>로그</span>
+      <span>실시간 · 200줄</span>
+    </div>
+    <div class="log-stream" aria-live="polite">
+      <div class="log-line"><span class="log-time">09:00:02</span><span class="log-msg success">login success</span></div>
+      <div class="log-line"><span class="log-time">09:00:32</span><span class="log-msg">checking 2024-05-01 ~ 2024-05-02</span></div>
+      <div class="log-line"><span class="log-time">09:00:33</span><span class="log-msg">slot status: full</span></div>
+      <div class="log-line"><span class="log-time">09:02:42</span><span class="log-msg">checking 2024-05-01 ~ 2024-05-02</span></div>
+      <div class="log-line"><span class="log-time">09:02:42</span><span class="log-msg warn">slot opened — booking attempt</span></div>
+      <div class="log-line"><span class="log-time">09:02:43</span><span class="log-msg">selecting room...</span></div>
+      <div class="log-line"><span class="log-time">09:02:44</span><span class="log-msg">submitting reservation...</span></div>
+      <div class="log-line"><span class="log-time">09:02:46</span><span class="log-msg success">예약 성공! 신구로 2024-05-01</span></div>
+      <div class="log-line"><span class="log-time">09:23:11</span><span class="log-msg">monitoring (next check 09:25)</span></div>
+    </div>
+  </section>
+</main>
+
+<!-- ─── State variants strip (목업 전용) ─── -->
+<section class="variants" aria-label="상태 변형 모음">
+  <h2>상태 변형 (mockup reference)</h2>
+  <p>실제 앱에서는 같은 위치에 상황별로 하나씩 표시됩니다. 디자인 검증용.</p>
+
+  <div class="state-grid">
+    <div class="state-card">
+      <div class="caption">중지</div>
+      <div class="status-row">
+        <span class="dot gray"></span>
+        <span class="status-label">중지</span>
+      </div>
+    </div>
+
+    <div class="state-card">
+      <div class="caption">예약 시도중 (애니메이션)</div>
+      <div class="status-row">
+        <span class="dot blue"></span>
+        <span class="status-label">예약 시도 중...</span>
+      </div>
+    </div>
+
+    <div class="state-card">
+      <div class="caption">예약 완료</div>
+      <div class="status-row">
+        <span class="badge">예약완료 2024.05.01</span>
+      </div>
+    </div>
+
+    <div class="state-card">
+      <div class="caption">오류</div>
+      <div class="status-row">
+        <span class="dot red"></span>
+        <span class="status-label">오류 발생</span>
+      </div>
+      <div class="status-sub" style="margin-top: 4px;">로그인 실패 — 비밀번호를 확인하세요</div>
+    </div>
+
+    <div class="state-card">
+      <div class="caption">첫 로드 (빈 상태)</div>
+      <div class="empty-hint">위 항목을 입력하고<br>시작을 누르세요</div>
+    </div>
+
+    <div class="state-card">
+      <div class="caption">409 — 이미 실행 중</div>
+      <div class="toast error">이미 실행 중입니다</div>
+    </div>
+
+    <div class="state-card">
+      <div class="caption">Slack 테스트 성공</div>
+      <div class="toast success">전송 성공</div>
+    </div>
+
+    <div class="state-card">
+      <div class="caption">WS 연결 끊김</div>
+      <div class="toast error">연결 끊김. 3초 후 재시도...</div>
+    </div>
+  </div>
+</section>
+
+</body>
+</html>

@@ -479,17 +479,8 @@
       }
     }
 
-    // 보조 라인
-    if (running && s.last_check_at) {
-      const parts = ['마지막 확인: ' + s.last_check_at];
-      if (s.next_check_at) parts.push('다음: ' + s.next_check_at);
-      if (s.target) parts.push('대상: ' + s.target);
-      els.statusSub.textContent = parts.join(' · ');
-    } else if (!running && s && s.target) {
-      els.statusSub.textContent = '대상: ' + s.target;
-    } else {
-      els.statusSub.textContent = '';
-    }
+    // 보조 라인: 대상만 표시 (마지막/다음 확인 시각은 로그 뷰어로 충분)
+    els.statusSub.textContent = (s && s.target) ? '대상: ' + s.target : '';
 
     // 버튼 토글
     state.running = running;

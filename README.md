@@ -80,10 +80,12 @@ docker compose up --build
 ### 로컬 개발 (Docker 없이)
 
 ```bash
-uv sync
-uv run python main.py
+uv sync                    # 최초 1회, pyproject.toml 기준 .venv 생성
+uv run python main.py      # FastAPI + uvicorn 기동
 # http://localhost:8000 접속
 ```
+
+macOS/Windows에 Google Chrome이 설치돼 있으면 시스템 Chrome을 자동 감지해서 사용하고, 없으면 Playwright 내장 Chromium으로 폴백합니다. 첫 실행 시 내장 Chromium이 필요하면 `uv run playwright install chromium` 한 번 돌리면 됩니다.
 
 ## 프로젝트 구조
 

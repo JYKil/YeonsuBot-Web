@@ -17,8 +17,6 @@ idPw.md
 
 # 패키지 매니저
 .python-version
-pyproject.toml
-uv.lock
 
 # gstack
 CHECKPOINT.md

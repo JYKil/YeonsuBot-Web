@@ -22,9 +22,9 @@
 ## 실행 방법
 
 ```bash
-# 로컬 (Docker 없이)
-uv sync && uv run python main.py
-# → http://localhost:8000
+# 로컬 (Docker 없이) — pyproject.toml 기반
+uv sync                  # 최초 1회
+uv run python main.py    # → http://localhost:8000
 
 # Docker
 docker compose up --build

@@ -194,10 +194,63 @@ Create 클릭 → 1~2분 후 RUNNING 상태가 되면 Public IP 확인.
 
 #### 3. 접속 및 방화벽
 
+##### 3-1. SSH 키 다루기
+
+VM 생성 시 다운로드 받은 키 파일은 보통 두 개입니다:
+
+- `ssh-key-YYYY-MM-DD.key` — **private key** (열쇠, 절대 유출 금지)
+- `ssh-key-YYYY-MM-DD.key.pub` — **public key** (자물쇠, 백업용)
+
+> ⚠️ private key는 **다운로드 시점 한 번만** 받을 수 있습니다. 잃어버리면 VM 재생성 필요.
+
+**(1) 안전한 위치로 이동 + 이름 정리**
+
 ```bash
-chmod 600 ssh-key-xxx.key
-ssh -i ssh-key-xxx.key ubuntu@<Public-IP>
+mkdir -p ~/.ssh
+mv ~/Downloads/ssh-key-YYYY-MM-DD.key ~/.ssh/oracle_yeonsubot
+mv ~/Downloads/ssh-key-YYYY-MM-DD.key.pub ~/.ssh/oracle_yeonsubot.pub
 ```
+
+**(2) 권한 설정 (필수)**
+
+권한이 너무 열려있으면 SSH가 사용을 거부합니다 (`UNPROTECTED PRIVATE KEY FILE!` 에러).
+
+```bash # 본인만 읽기/쓰기 # 본인 읽기/쓰기, 남들 읽기만
+chmod 600 ~/.ssh/oracle_yeonsubot       
+chmod 644 ~/.ssh/oracle_yeonsubot.pub   
+```
+
+**(3) VM 접속 테스트**
+
+OCI 콘솔에서 Public IP 확인 후:
+
+```bash
+ssh -i ~/.ssh/oracle_yeonsubot ubuntu@<Public-IP>
+```
+
+- `-i` : 사용할 private key 지정
+- `ubuntu` : Ubuntu 이미지 기본 사용자명 (Oracle Linux면 `opc`)
+- 첫 접속 시 `Are you sure you want to continue connecting?` → **yes**
+
+**(4) (선택) `~/.ssh/config` 별칭 설정**
+
+매번 `-i` 옵션 안 쓰게 별칭 등록:
+
+```bash
+cat >> ~/.ssh/config <<'EOF'
+Host yeonsubot
+  HostName <Public-IP>
+  User ubuntu
+  IdentityFile ~/.ssh/oracle_yeonsubot
+EOF
+chmod 600 ~/.ssh/config
+```
+
+이후엔 `ssh yeonsubot` 만 입력하면 접속됩니다.
+
+> 💡 백업: private key를 잃어버리면 복구 불가. 1Password / iCloud Keychain / 외장 드라이브 등에 백업 권장. **절대 git에 커밋 금지** — `.gitignore`에 `*.key`, `id_*` 추가.
+
+##### 3-2. 포트 개방
 
 **포트 열기 (8000번 — FastAPI)** — 두 군데 모두 열어야 접속됩니다:
 

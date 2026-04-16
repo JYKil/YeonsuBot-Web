@@ -92,6 +92,7 @@ def _detect_browser_channel() -> str | None:
 
 
 # JS: 달력에서 예약 가능 날짜 읽기
+# 사이트는 가용 날짜에 td.onclick 핸들러를 붙이는 구조 (button이 아님)
 _JS_READ_CALENDAR = """
 (targetDates) => {
     const targetSet = new Set(targetDates);
@@ -101,11 +102,17 @@ _JS_READ_CALENDAR = """
         const rawDate = td.getAttribute('data-date') || '';
         const date = rawDate.replace(/\\./g, '');
         if (!targetSet.has(date)) return;
-        const btn = td.querySelector('button');
-        if (!btn || btn.disabled || btn.classList.contains('day-prev')) {
+        if (td.classList.contains('day-prev')) {
             blocked.push(date);
-        } else {
+            return;
+        }
+        const btn = td.querySelector('button');
+        const hasOnclick = typeof td.onclick === 'function';
+        const btnOk = btn && !btn.disabled && !btn.classList.contains('day-prev');
+        if (hasOnclick || btnOk) {
             available.push(date);
+        } else {
+            blocked.push(date);
         }
     });
     return {blocked, available};
@@ -281,10 +288,11 @@ class BrowserSession:
                     page.wait_for_selector('td[data-date]', state='attached', timeout=5000)
                 except PlaywrightTimeout:
                     logger.warning("달력 요소를 찾을 수 없음")
-            # 버튼이 enabled 될 때까지 추가 대기 (JS 초기화 완료)
+            # 클릭 가능 요소 대기 (onclick 핸들러 또는 enabled 버튼)
             try:
                 page.wait_for_selector(
-                    'td.targetDate button:not([disabled])', state='attached', timeout=5000)
+                    'td.targetDate[onclick], td.targetDate button:not([disabled])',
+                    state='attached', timeout=5000)
             except PlaywrightTimeout:
                 pass  # 진짜 예약 불가일 수도 있으므로 에러 아님
             _random_delay(page, 1000, 500)

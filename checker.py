@@ -522,15 +522,22 @@ class BrowserSession:
                     if (el) el.value = co;
                 });
             }""", [checkin_date, checkout_date, yeonsu_gbn])
-            # search() 호출하여 객실 목록 로드
-            try:
-                page.evaluate("search()")
-            except Exception as exc:
-                logger.warning("[예약] search() 호출 오류: %s", exc)
-            try:
-                page.wait_for_load_state('networkidle', timeout=15000)
-            except PlaywrightTimeout:
-                logger.warning("[예약] search() 후 네트워크 안정 대기 타임아웃")
+            # 사이트가 URL 파라미터를 감지하여 자동으로 객실을 로드했는지 확인
+            # (자동 search가 실행되면 alert + AJAX가 이미 진행됨)
+            already_loaded = page.evaluate(
+                "document.querySelector('input[name=\"termType\"]') !== null")
+            if already_loaded:
+                logger.info("[예약] 객실 목록 자동 로드 확인, search() 건너뜀")
+            else:
+                # 자동 로드 안 됐으면 search() 호출하여 객실 목록 로드
+                try:
+                    page.evaluate("search()")
+                except Exception as exc:
+                    logger.warning("[예약] search() 호출 오류: %s", exc)
+                try:
+                    page.wait_for_load_state('networkidle', timeout=15000)
+                except PlaywrightTimeout:
+                    logger.warning("[예약] search() 후 네트워크 안정 대기 타임아웃")
             logger.info("[예약] search() 후 현재 URL: %s", page.url)
             _random_delay(page, 1000, 500)
 
@@ -583,8 +590,10 @@ class BrowserSession:
                 }""")
             except PlaywrightTimeout:
                 try:
-                    body_text = page.inner_text('body')[:500]
-                    logger.warning("[예약] 객실 페이지 내용: %s", body_text)
+                    room_html = page.evaluate(
+                        "document.querySelector('#room_contents')?.innerHTML"
+                        "?.substring(0, 500) || 'EMPTY'")
+                    logger.warning("[예약] #room_contents 내용: %s", room_html)
                 except Exception:
                     pass
                 raise BookingError("'객실선택하기' 버튼을 찾을 수 없음")

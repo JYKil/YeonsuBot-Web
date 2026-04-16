@@ -35,3 +35,9 @@
 - **원인**: 사이트는 **모든 td**에 `onclick="rsvList(...)"` 속성을 붙임. 4/16 수정에서 추가한 `typeof td.onclick === 'function'` 체크가 항상 true 반환 → `hasOnclick || btnOk`에서 disabled button을 가진 불가 날짜도 가능으로 판정. HTML 구조: 가능=`<button>` enabled, 불가=`<button class="day-prev" disabled="disabled">`
 - **수정**: `hasOnclick` 변수 및 OR 조건 제거, `btnOk`(button enabled + day-prev 아님)만으로 판정
 - **파일**: `checker.py` (`_JS_READ_CALENDAR`)
+
+## [2026-04-17] Slack 예약 성공 알림 — 체크아웃 날짜 오류
+- **증상**: Slack 예약 완료 메시지에서 체크인/아웃이 `20260506~20260506`으로 동일하게 표시 (실제 체크아웃은 20260507)
+- **원인**: `_send_slack_success()`에서 `checkout=self._target_dates[-1]`로 전달. `target_dates`는 숙박일만 포함하고 체크아웃일은 제외된 구조(`[checkin, checkout)`)이므로, 1박 예약 시 `[0]`과 `[-1]`이 동일한 날짜가 됨.
+- **수정**: `checkout`을 `target_dates[-1] + 1일`로 계산하여 실제 체크아웃 날짜 전달
+- **파일**: `scheduler.py` (`_send_slack_success()`)

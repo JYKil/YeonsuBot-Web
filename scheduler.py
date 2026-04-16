@@ -2,6 +2,7 @@
 
 import logging
 import threading
+from datetime import datetime, timedelta
 from enum import Enum, auto
 
 import notifier
@@ -210,7 +211,7 @@ class MonitorScheduler:
         booked_date=self._target_dates[0],
         username=self._username,
         checkin=self._target_dates[0],
-        checkout=self._target_dates[-1],
+        checkout=(datetime.strptime(self._target_dates[-1], "%Y%m%d") + timedelta(days=1)).strftime("%Y%m%d"),
       )
     except Exception as exc:
       logger.warning("Slack 성공 알림 실패: %s", exc)

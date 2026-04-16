@@ -59,6 +59,12 @@
 - **수정**: 가능 날짜 없거나 일부만 가능할 때 `다음 점검까지 N초 대기` 로그 추가
 - **파일**: `scheduler.py` (`_do_check_and_book()`)
 
+## [2026-04-17] 여수 연수원 달력 블로킹 — check()에 dialog 핸들러 미등록
+- **증상**: 여수히든베이/여수베네치아연수원만 달력 판정 실패 (다른 연수원은 정상). 10초 이상 대기 후에도 가능 날짜 미감지.
+- **원인**: `check()` 메서드에 dialog 핸들러가 없음. 여수 시설 선택 시 change 이벤트가 alert을 트리거하면 Playwright가 dialog 처리 대기로 페이지 블로킹. `book()`에는 이미 핸들러가 있어 정상 동작.
+- **수정**: `check()`에서 page 생성 직후 `page.on("dialog", handle_dialog)` 등록하여 alert 자동 accept
+- **파일**: `checker.py` (check() 메서드)
+
 ## [2026-04-17] Slack 알림 시간대 오류 + 중복 항목
 - **증상**: 예약시간이 "04-16 21:24"로 표시 (실제 KST 04-17 06:24). 서버가 Oracle Cloud VM(UTC)에서 실행되어 `datetime.now()`가 UTC 반환. "확인시간"과 "예약일"이 중복.
 - **수정**: (1) 모든 `datetime.now()` → `datetime.now(KST)` 적용 (2) `send_booking_success()`에서 "확인시간" 삭제 (3) "예약일" → "예약시간"으로 라벨 변경

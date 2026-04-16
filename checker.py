@@ -230,6 +230,14 @@ class BrowserSession:
         page = None
         try:
             page = self._context.new_page()
+
+            # dialog 핸들러 — alert 자동 accept (여수 시설 등 시설별 안내 팝업 대응)
+            def handle_dialog(dialog):
+                logger.debug("check() dialog: type=%s, message=%s", dialog.type, dialog.message)
+                dialog.accept()
+
+            page.on("dialog", handle_dialog)
+
             url = f"{ONLINE_RSV_URL}?ser_yeonsu_gbn={yeonsu_gbn}"
 
             # goto 타임아웃 시 1회 재시도 (연속 요청 시 사이트 응답 지연 대응)

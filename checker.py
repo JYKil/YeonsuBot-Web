@@ -151,7 +151,7 @@ class BrowserSession:
 
         self._pw = sync_playwright().start()
         channel = _detect_browser_channel()
-        launch_kwargs: dict = {"headless": True}
+        launch_kwargs: dict = {"headless": os.environ.get("HEADLESS", "true").lower() != "false"}
         if channel:
             launch_kwargs["channel"] = channel
         if platform.system() == "Linux":

@@ -28,6 +28,9 @@ uv run python main.py    # → http://localhost:8000
 
 # Docker
 docker compose up --build
+
+# 로컬 디버깅 (headful 모드 — 브라우저 창 띄워서 DOM/JS 동작 확인)
+HEADLESS=false uv run python main.py
 ```
 
 ## 배포 환경

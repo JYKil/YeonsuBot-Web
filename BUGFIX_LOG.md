@@ -36,8 +36,19 @@
 - **수정**: `hasOnclick` 변수 및 OR 조건 제거, `btnOk`(button enabled + day-prev 아님)만으로 판정
 - **파일**: `checker.py` (`_JS_READ_CALENDAR`)
 
-## [2026-04-17] Slack 예약 성공 알림 — 체크아웃 날짜 오류
-- **증상**: Slack 예약 완료 메시지에서 체크인/아웃이 `20260506~20260506`으로 동일하게 표시 (실제 체크아웃은 20260507)
-- **원인**: `_send_slack_success()`에서 `checkout=self._target_dates[-1]`로 전달. `target_dates`는 숙박일만 포함하고 체크아웃일은 제외된 구조(`[checkin, checkout)`)이므로, 1박 예약 시 `[0]`과 `[-1]`이 동일한 날짜가 됨.
-- **수정**: `checkout`을 `target_dates[-1] + 1일`로 계산하여 실제 체크아웃 날짜 전달
-- **파일**: `scheduler.py` (`_send_slack_success()`)
+## [2026-04-17] Slack 예약 성공 알림 — 날짜 표시 오류 (3건)
+- **증상 1**: 체크인/아웃이 `20260506~20260506`으로 동일하게 표시 (실제 체크아웃은 20260507)
+- **원인 1**: `_send_slack_success()`에서 `checkout=self._target_dates[-1]`로 전달. `target_dates`는 숙박일만 포함(`[checkin, checkout)`)하므로 1박 시 `[0]`과 `[-1]`이 동일.
+- **수정 1**: `checkout`을 `target_dates[-1] + 1일`로 계산 (`scheduler.py`)
+- **증상 2**: 체크아웃 수정 후에도 체크인/아웃이 `20260507~20260508` (YYYYMMDD 원본 그대로 출력, MM-DD 포맷 안 됨)
+- **원인 2**: `notifier.py`의 `checkin[5:] if len(checkin) >= 10`이 YYYY-MM-DD(10자)만 처리, scheduler는 YYYYMMDD(8자)로 전달
+- **수정 2**: YYYYMMDD(8자) 형식도 `MM-DD`로 변환하도록 포맷 로직 추가 (`notifier.py`)
+- **증상 3**: 예약일이 체크인 날짜(`05-07`)로 표시, 실제 예약 수행일(오늘)이 아님
+- **원인 3**: `booked_date=self._target_dates[0]`으로 체크인 날짜 전달
+- **수정 3**: `datetime.now().strftime("%m-%d %H:%M")`으로 실제 예약 수행 시점 표시 (`notifier.py`)
+- **파일**: `scheduler.py` (`_send_slack_success()`), `notifier.py` (`send_booking_success()`)
+
+## [2026-04-17] 점검 결과 후 다음 주기 로그 누락
+- **증상**: 달력 결과 로그(`달력 결과: 불가 [...], 가능 []`) 이후 다음 점검까지 로그가 없어 대기 상태인지 알 수 없음
+- **수정**: 가능 날짜 없거나 일부만 가능할 때 `다음 점검까지 N초 대기` 로그 추가
+- **파일**: `scheduler.py` (`_do_check_and_book()`)

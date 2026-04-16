@@ -162,10 +162,12 @@ class MonitorScheduler:
       self.on_check_result(available, self._yeonsu_gbn)
 
     if available is None:
+      logger.info("다음 점검까지 %d초 대기", self._interval)
       return
 
     # 전체 범위가 다 비어야 예약 시도
     if set(available) != set(self._target_dates):
+      logger.info("일부 날짜 불가, 다음 점검까지 %d초 대기", self._interval)
       return
 
     # 전체 범위 예약 가능! 예약 시도

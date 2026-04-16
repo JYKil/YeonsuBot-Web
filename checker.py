@@ -485,7 +485,7 @@ class BrowserSession:
 
             # 4단계: 기관배정 팝업 닫기 (#notiNoRsvA → noRsvClose())
             try:
-                page.wait_for_selector('#notiNoRsvA', state='attached', timeout=5000)
+                page.wait_for_selector('#notiNoRsvA', state='visible', timeout=3000)
                 # noRsvClose()가 정의되지 않을 수 있으므로 안전하게 호출
                 page.evaluate("""() => {
                     if (typeof noRsvClose === 'function') {
@@ -517,14 +517,15 @@ class BrowserSession:
             if _stopped():
                 raise BookingError("중지 요청됨")
 
-            # 5단계: 첫 번째 가용 객실의 "객실선택하기" 버튼 클릭
-            # get_by_text()는 <script>/<style> 태그를 자동 제외
-            room_btn = page.get_by_text('객실선택하기')
+            # 5단계: 첫 번째 가용 객실의 "객실선택하기" 클릭
             try:
-                room_btn.first.wait_for(state='attached', timeout=10000)
+                page.wait_for_selector('label[for^="termType"]', state='attached', timeout=10000)
+                page.evaluate("""() => {
+                    const label = document.querySelector('label[for^="termType"]');
+                    if (label) label.click();
+                }""")
             except PlaywrightTimeout:
                 raise BookingError("'객실선택하기' 버튼을 찾을 수 없음")
-            room_btn.first.click(force=True)
             logger.info("[예약] 객실선택하기 클릭 완료")
 
             # 객실 선택 후 예약 상세 폼 활성화 확인

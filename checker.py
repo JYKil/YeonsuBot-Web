@@ -266,12 +266,13 @@ class BrowserSession:
             # 달력 읽기
             logger.info("달력 검색 중...")
 
-            if page.evaluate("typeof showCalendar === 'function'"):
+            try:
+                page.wait_for_function("typeof showCalendar === 'function'", timeout=5000)
                 page.evaluate("showCalendar()")
-            else:
-                logger.info("showCalendar 함수 없음, 달력이 이미 로드되었는지 확인")
+            except PlaywrightTimeout:
+                logger.warning("showCalendar 대기 타임아웃, 달력이 이미 로드되었는지 확인")
 
-            # 달력 요소가 DOM에 나타날 때까지 대기 (숨김 상태여도 OK)
+            # 달력 요소가 DOM에 나타날 때까지 대기
             try:
                 page.wait_for_selector('td.targetDate[data-date]', state='attached', timeout=10000)
             except PlaywrightTimeout:
@@ -280,16 +281,24 @@ class BrowserSession:
                     page.wait_for_selector('td[data-date]', state='attached', timeout=5000)
                 except PlaywrightTimeout:
                     logger.warning("달력 요소를 찾을 수 없음")
+            # 버튼이 enabled 될 때까지 추가 대기 (JS 초기화 완료)
+            try:
+                page.wait_for_selector(
+                    'td.targetDate button:not([disabled])', state='attached', timeout=5000)
+            except PlaywrightTimeout:
+                pass  # 진짜 예약 불가일 수도 있으므로 에러 아님
             _random_delay(page, 1000, 500)
 
-            # 달력 읽기 (빈 결과 시 최대 2회 재시도)
+            # 달력 읽기 (가능 날짜 없으면 최대 2회 재시도 — JS 초기화 대기)
             result = None
             for attempt in range(3):
                 result = page.evaluate(_JS_READ_CALENDAR, target_dates)
-                if result.get("blocked") or result.get("available"):
+                if result.get("available"):
                     break
+                if result.get("blocked") and attempt == 2:
+                    break  # 마지막 시도면 blocked만이라도 확정
                 if attempt < 2:
-                    logger.info("달력 요소 없음, 2초 후 재시도... (%d/3)", attempt + 1)
+                    logger.info("가능 날짜 없음, 2초 후 재시도... (%d/3)", attempt + 1)
                     page.wait_for_timeout(2000)
 
             blocked = result.get("blocked", [])

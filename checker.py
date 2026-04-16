@@ -454,7 +454,7 @@ class BrowserSession:
                 raise BookingError("중지 요청됨")
 
             # 날짜 폼 필드 직접 설정 (rsvList()가 hidden 필드를 못 채울 수 있음)
-            page.evaluate("""(ci, co) => {
+            page.evaluate("""([ci, co]) => {
                 ['check_in_day', 'check_in_day_hidden'].forEach(id => {
                     const el = document.getElementById(id);
                     if (el) el.value = ci;
@@ -463,7 +463,7 @@ class BrowserSession:
                     const el = document.getElementById(id);
                     if (el) el.value = co;
                 });
-            }""", checkin_date, checkout_date)
+            }""", [checkin_date, checkout_date])
             actual = page.evaluate("""() => ({
                 ci: document.getElementById('check_in_day')?.value || '',
                 co: document.getElementById('check_out_day')?.value || ''

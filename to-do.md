@@ -46,9 +46,9 @@
 
 - [x] **`checker.py`** — Linux headless 환경 대응
   - `_detect_browser_channel()`: 브라우저 못 찾으면 예외 대신 `None` 반환
-  - `BrowserSession.start()`: `channel=None` 시 내장 Chromium 사용
-  - **시스템 Chrome 있을 때는 `--no-sandbox` 적용 안 함** (로컬 macOS/Windows 샌드박스 유지)
-  - 내장 Chromium 사용 시에만 `--no-sandbox`, `--disable-dev-shm-usage` 적용
+  - `BrowserSession.start()`: Docker에서는 `playwright install chrome`으로 설치한 실제 Chrome 사용
+  - Linux 환경에서는 `--no-sandbox`, `--disable-dev-shm-usage` 항상 적용
+  - 로컬 macOS/Windows에서는 시스템 Chrome 자동 감지, 샌드박스 유지
 
 - [x] **`notifier.py`** — 변경 없음
 - [x] **`scheduler.py`, `facilities.py`** — 변경 없음

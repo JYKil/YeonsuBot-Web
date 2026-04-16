@@ -90,7 +90,7 @@ uv run python main.py      # FastAPI + uvicorn 기동
 # http://localhost:8000 접속
 ```
 
-macOS/Windows에 Google Chrome이 설치돼 있으면 시스템 Chrome을 자동 감지해서 사용하고, 없으면 Playwright 내장 Chromium으로 폴백합니다. 첫 실행 시 내장 Chromium이 필요하면 `uv run playwright install chromium` 한 번 돌리면 됩니다.
+macOS/Windows에 Google Chrome이 설치돼 있으면 시스템 Chrome을 자동 감지해서 사용하고, 없으면 Playwright 내장 Chromium으로 폴백합니다. Docker 환경에서는 실제 Google Chrome이 이미지에 포함되어 있어 자동 감지됩니다.
 
 ## 프로젝트 구조
 
@@ -98,7 +98,7 @@ macOS/Windows에 Google Chrome이 설치돼 있으면 시스템 Chrome을 자동
 YeonsuBot-Web/
 ├── main.py           # FastAPI 진입점 (uvicorn)
 ├── web_server.py     # FastAPI 앱 (AppState, /ws, lifespan)
-├── checker.py        # Playwright 기반 예약 확인 + 자동 예약 (headless 폴백 포함)
+├── checker.py        # Playwright 기반 예약 확인 + 자동 예약 (Docker: Google Chrome)
 ├── scheduler.py      # 워커 스레드 + 주기적 모니터링
 ├── notifier.py       # Slack 웹훅 알림
 ├── config.py         # settings.json 저장/불러오기 (SETTINGS_DIR 환경변수)
@@ -123,7 +123,7 @@ YeonsuBot-Web/
 | 실시간 통신 | WebSocket (단일 `/ws`) |
 | 프론트엔드 | Vanilla JS (단일 HTML) |
 | 디자인 시스템 | Apple 시스템 (SF Pro, `#0071e3`) |
-| 브라우저 자동화 | Playwright (headless Chromium, Linux에서 내장 Chromium 사용) |
+| 브라우저 자동화 | Playwright (Docker: Google Chrome, 로컬: 시스템 Chrome 자동 감지) |
 | HTTP | requests |
 | 알림 | Slack Incoming Webhook |
 | 컨테이너 | Docker (`mcr.microsoft.com/playwright/python`) |

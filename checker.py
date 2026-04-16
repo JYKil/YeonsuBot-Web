@@ -387,6 +387,10 @@ class BrowserSession:
             dialog_results = []
 
             def handle_dialog(dialog):
+                # 크롬 브라우저 경고는 무시 (Chromium 환경에서 반복 발생)
+                if "크롬 브라우저" in dialog.message:
+                    dialog.accept()
+                    return
                 logger.info("[예약] dialog: type=%s, message=%s", dialog.type, dialog.message)
                 dialog_results.append({"type": dialog.type, "message": dialog.message})
                 dialog.accept()
@@ -647,7 +651,13 @@ class BrowserSession:
                 logger.info("[예약] 페이지 이동 감지: %s", current_url)
                 return True
 
-            # dialog 기반 판단
+            # dialog 기반 판단 — 성공 메시지 우선 확인
+            for dr in dialog_results:
+                msg = dr.get("message", "")
+                if "완료" in msg:
+                    logger.info("[예약] 성공 dialog 감지: %s", msg)
+                    return True
+
             fail_keywords = ["실패", "불가", "마감", "초과", "오류", "에러",
                              "없습니다", "선택해", "입력해", "확인해"]
             for dr in dialog_results:

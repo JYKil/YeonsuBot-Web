@@ -82,9 +82,9 @@ def send_booking_success(
         return False
 
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    checkin_short = checkin[5:] if len(checkin) >= 10 else checkin
-    checkout_short = checkout[5:] if len(checkout) >= 10 else checkout
-    date_str = booked_date[4:6] + "-" + booked_date[6:] if len(booked_date) == 8 else booked_date
+    checkin_short = checkin[4:6] + "-" + checkin[6:] if len(checkin) == 8 else checkin[5:] if len(checkin) >= 10 else checkin
+    checkout_short = checkout[4:6] + "-" + checkout[6:] if len(checkout) == 8 else checkout[5:] if len(checkout) >= 10 else checkout
+    date_str = datetime.now().strftime("%m-%d %H:%M")
 
     text = (
         f"<!channel> 🎉 예약 완료!\n"

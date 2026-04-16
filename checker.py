@@ -522,9 +522,9 @@ class BrowserSession:
 
             # 5단계: 첫 번째 가용 객실의 "객실선택하기" 클릭
             try:
-                page.wait_for_selector('#room_contents', state='attached', timeout=10000)
+                page.wait_for_selector('#room_contents', state='attached', timeout=20000)
                 page.wait_for_function(
-                    "document.querySelector('input[name=\"termType\"]') !== null", timeout=10000)
+                    "document.querySelector('input[name=\"termType\"]') !== null", timeout=20000)
                 page.evaluate("""() => {
                     const radio = document.querySelector('input[name="termType"]');
                     if (radio) {

@@ -250,35 +250,17 @@ class BrowserSession:
                     logger.error("재로그인 후에도 세션 만료")
                     return None
 
-            # 연수원 선택 — URL 파라미터로 이미 올바른 페이지에 도착했으므로
-            # <select> 존재 시 코드로 직접 value 설정, 없으면 스킵
+            # 연수원 선택 — URL 파라미터(?ser_yeonsu_gbn=)로 이미 선택됨
+            # <select> 값만 동기화, roomViewSend() 호출 불필요
             facility_name = get_facility_name(yeonsu_gbn)
-            has_select = page.evaluate(
+            page.evaluate(
                 """(code) => {
                     const sel = document.getElementById('ser_yeonsu_gbn');
-                    if (!sel) return false;
-                    sel.value = code;
-                    return true;
+                    if (sel) sel.value = code;
                 }""",
                 yeonsu_gbn,
             )
-            if has_select:
-                logger.info("연수원 '%s' 선택 (코드: %s)", facility_name, yeonsu_gbn)
-                try:
-                    page.wait_for_function("typeof roomViewSend === 'function'", timeout=5000)
-                    page.evaluate("roomViewSend()")
-                except PlaywrightTimeout:
-                    logger.warning("roomViewSend 대기 타임아웃, change 이벤트로 폴백")
-                    page.evaluate("""
-                        const sel = document.getElementById('ser_yeonsu_gbn');
-                        if (sel) sel.dispatchEvent(new Event('change', {bubbles: true}));
-                    """)
-                try:
-                    page.wait_for_load_state('networkidle', timeout=10000)
-                except PlaywrightTimeout:
-                    logger.warning("roomViewSend 네트워크 안정 대기 타임아웃")
-            else:
-                logger.info("연수원 '%s' — select 요소 없음, URL 파라미터로 이미 선택됨", facility_name)
+            logger.info("연수원 '%s' 선택 (코드: %s)", facility_name, yeonsu_gbn)
             _random_delay(page, 1000, 500)
 
             # 달력 읽기
@@ -405,35 +387,17 @@ class BrowserSession:
 
             page.on("dialog", handle_dialog)
 
-            # 1단계: 연수원 선택 — URL 파라미터로 이미 올바른 페이지에 도착했으므로
-            # <select> 존재 시 코드로 직접 value 설정, 없으면 스킵
+            # 1단계: 연수원 선택 — URL 파라미터(?ser_yeonsu_gbn=)로 이미 선택됨
+            # <select> 값만 동기화, roomViewSend() 호출 불필요
             facility_name = get_facility_name(yeonsu_gbn)
-            has_select = page.evaluate(
+            page.evaluate(
                 """(code) => {
                     const sel = document.getElementById('ser_yeonsu_gbn');
-                    if (!sel) return false;
-                    sel.value = code;
-                    return true;
+                    if (sel) sel.value = code;
                 }""",
                 yeonsu_gbn,
             )
-            if has_select:
-                logger.info("[예약] 연수원 '%s' 선택 (코드: %s)", facility_name, yeonsu_gbn)
-                try:
-                    page.wait_for_function("typeof roomViewSend === 'function'", timeout=5000)
-                    page.evaluate("roomViewSend()")
-                except PlaywrightTimeout:
-                    logger.warning("[예약] roomViewSend 대기 타임아웃, change 이벤트로 폴백")
-                    page.evaluate("""
-                        const sel = document.getElementById('ser_yeonsu_gbn');
-                        if (sel) sel.dispatchEvent(new Event('change', {bubbles: true}));
-                    """)
-                try:
-                    page.wait_for_load_state('networkidle', timeout=10000)
-                except PlaywrightTimeout:
-                    logger.warning("[예약] roomViewSend 네트워크 안정 대기 타임아웃")
-            else:
-                logger.info("[예약] 연수원 '%s' — select 요소 없음, URL 파라미터로 이미 선택됨", facility_name)
+            logger.info("[예약] 연수원 '%s' 선택 (코드: %s)", facility_name, yeonsu_gbn)
             _random_delay(page, 1000, 500)
 
             if _stopped():

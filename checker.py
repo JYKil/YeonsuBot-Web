@@ -524,9 +524,9 @@ class BrowserSession:
             try:
                 page.wait_for_selector('#room_contents', state='attached', timeout=10000)
                 page.wait_for_function(
-                    "document.querySelector('#termType001') !== null", timeout=10000)
+                    "document.querySelector('input[name=\"termType\"]') !== null", timeout=10000)
                 page.evaluate("""() => {
-                    const radio = document.getElementById('termType001');
+                    const radio = document.querySelector('input[name="termType"]');
                     if (radio) {
                         radio.checked = true;
                         radio.click();

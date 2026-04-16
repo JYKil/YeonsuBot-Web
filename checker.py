@@ -661,10 +661,6 @@ class BrowserSession:
                 if kw in page_text:
                     raise BookingError(f"예약 실패 (페이지 응답): {kw}")
 
-            if navigated:
-                logger.info("[예약] 페이지 이동 감지: %s", current_url)
-                return True
-
             # dialog 기반 판단 — 성공 메시지 우선 확인
             for dr in dialog_results:
                 msg = dr.get("message", "")
@@ -672,6 +668,7 @@ class BrowserSession:
                     logger.info("[예약] 성공 dialog 감지: %s", msg)
                     return True
 
+            # dialog 실패 키워드 체크 (네비게이션보다 먼저 — 리다이렉트 오판 방지)
             fail_keywords = ["실패", "불가", "마감", "초과", "오류", "에러",
                              "없습니다", "선택해", "입력해", "확인해"]
             for dr in dialog_results:
@@ -680,9 +677,12 @@ class BrowserSession:
                     if kw in msg:
                         raise BookingError(f"예약 실패 (서버 응답): {msg}")
 
+            if navigated:
+                logger.info("[예약] 페이지 이동 감지: %s", current_url)
+                return True
+
             # 네비게이션도 없고 실패 dialog도 없으면 → 성공 여부 불확실
-            if not navigated:
-                raise BookingError("예약 성공 여부 불확실 (페이지 이동 없음)")
+            raise BookingError("예약 성공 여부 불확실 (페이지 이동 없음)")
 
         except BookingError:
             raise

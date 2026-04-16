@@ -258,14 +258,21 @@ class BrowserSession:
                     const sel = document.getElementById('ser_yeonsu_gbn');
                     if (!sel) return false;
                     sel.value = code;
-                    if (typeof roomViewSend === 'function') roomViewSend();
-                    else sel.dispatchEvent(new Event('change', {bubbles: true}));
                     return true;
                 }""",
                 yeonsu_gbn,
             )
             if has_select:
                 logger.info("연수원 '%s' 선택 (코드: %s)", facility_name, yeonsu_gbn)
+                try:
+                    page.wait_for_function("typeof roomViewSend === 'function'", timeout=5000)
+                    page.evaluate("roomViewSend()")
+                except PlaywrightTimeout:
+                    logger.warning("roomViewSend 대기 타임아웃, change 이벤트로 폴백")
+                    page.evaluate("""
+                        const sel = document.getElementById('ser_yeonsu_gbn');
+                        if (sel) sel.dispatchEvent(new Event('change', {bubbles: true}));
+                    """)
                 try:
                     page.wait_for_load_state('networkidle', timeout=10000)
                 except PlaywrightTimeout:
@@ -406,14 +413,21 @@ class BrowserSession:
                     const sel = document.getElementById('ser_yeonsu_gbn');
                     if (!sel) return false;
                     sel.value = code;
-                    if (typeof roomViewSend === 'function') roomViewSend();
-                    else sel.dispatchEvent(new Event('change', {bubbles: true}));
                     return true;
                 }""",
                 yeonsu_gbn,
             )
             if has_select:
                 logger.info("[예약] 연수원 '%s' 선택 (코드: %s)", facility_name, yeonsu_gbn)
+                try:
+                    page.wait_for_function("typeof roomViewSend === 'function'", timeout=5000)
+                    page.evaluate("roomViewSend()")
+                except PlaywrightTimeout:
+                    logger.warning("[예약] roomViewSend 대기 타임아웃, change 이벤트로 폴백")
+                    page.evaluate("""
+                        const sel = document.getElementById('ser_yeonsu_gbn');
+                        if (sel) sel.dispatchEvent(new Event('change', {bubbles: true}));
+                    """)
                 try:
                     page.wait_for_load_state('networkidle', timeout=10000)
                 except PlaywrightTimeout:

@@ -488,7 +488,14 @@
     }
 
     // 보조 라인: 대상만 표시 (마지막/다음 확인 시각은 로그 뷰어로 충분)
-    els.statusSub.textContent = (s && s.target) ? '대상: ' + s.target : '';
+    if (s && s.target) {
+      const parts = s.target.split(' ');
+      const facility = parts[0] || '';
+      const dates = parts.slice(1).join(' ') || '';
+      els.statusSub.innerHTML = facility + (dates ? '<br>' + dates : '');
+    } else {
+      els.statusSub.textContent = '';
+    }
 
     // 버튼 토글
     state.running = running;

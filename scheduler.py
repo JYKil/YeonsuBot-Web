@@ -198,7 +198,8 @@ class MonitorScheduler:
 
     # 모든 재시도 실패 — Slack 실패 알림은 생략 (사용자 요청)
     logger.warning("예약 재시도 모두 실패, 모니터링 계속")
-    self._notify_status("모니터링 중")
+    if not stop_event.is_set():
+      self._notify_status("모니터링 중")
     self._notify_booking_result(BookingResult.FAILED, self._target_dates[0])
 
   def _send_slack_success(self):

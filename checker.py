@@ -488,8 +488,9 @@ class BrowserSession:
             logger.info("[예약] 날짜 필드 동기화: 체크인=%s, 체크아웃=%s",
                         actual['ci'], actual['co'])
 
-            # 3단계: "선택일로 예약하기" — 날짜 포함 URL로 직접 이동
-            # search() 및 form.submit()은 Chromium에서 날짜를 제대로 전달하지 못하므로 우회
+            # 3단계: "선택일로 예약하기" — URL 이동 후 search() 호출
+            # URL 파라미터만으로는 객실 목록이 자동 로드되지 않으므로
+            # 폼 필드 설정 후 search()를 명시적으로 호출해야 함
             logger.info("[예약] 선택일로 예약하기 클릭...")
             list_url = (
                 f"https://yeonsu.eseoul.go.kr/onlineRsv/list"
@@ -502,6 +503,34 @@ class BrowserSession:
                 page.wait_for_load_state('networkidle', timeout=10000)
             except PlaywrightTimeout:
                 logger.warning("[예약] 객실 목록 네트워크 안정 대기 타임아웃")
+
+            # 폼 필드에 날짜가 설정되었는지 확인 후 search() 호출로 객실 목록 로드
+            page.evaluate("""([ci, co, code]) => {
+                const ciEl = document.getElementById('check_in_day');
+                const coEl = document.getElementById('check_out_day');
+                const selEl = document.getElementById('ser_yeonsu_gbn');
+                if (ciEl) ciEl.value = ci;
+                if (coEl) coEl.value = co;
+                if (selEl) selEl.value = code;
+                // hidden 필드도 동기화
+                ['check_in_day_hidden'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.value = ci;
+                });
+                ['check_out_day_hidden'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.value = co;
+                });
+            }""", [checkin_date, checkout_date, yeonsu_gbn])
+            # search() 호출하여 객실 목록 로드
+            try:
+                page.evaluate("search()")
+            except Exception as exc:
+                logger.warning("[예약] search() 호출 오류: %s", exc)
+            try:
+                page.wait_for_load_state('networkidle', timeout=15000)
+            except PlaywrightTimeout:
+                logger.warning("[예약] search() 후 네트워크 안정 대기 타임아웃")
             logger.info("[예약] search() 후 현재 URL: %s", page.url)
             _random_delay(page, 1000, 500)
 

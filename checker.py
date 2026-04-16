@@ -491,7 +491,18 @@ class BrowserSession:
             # 4단계: 기관배정 팝업 닫기 (#notiNoRsvA → noRsvClose())
             try:
                 page.wait_for_selector('#notiNoRsvA', state='attached', timeout=5000)
-                page.evaluate("noRsvClose()")
+                # noRsvClose()가 정의되지 않을 수 있으므로 안전하게 호출
+                page.evaluate("""() => {
+                    if (typeof noRsvClose === 'function') {
+                        noRsvClose();
+                    } else {
+                        // 함수 미정의 시 직접 팝업 숨김
+                        const el = document.getElementById('notiNoRsvA');
+                        if (el) el.style.display = 'none';
+                        document.querySelectorAll('.ui-widget-overlay, .ui-dialog')
+                            .forEach(e => e.style.display = 'none');
+                    }
+                }""")
                 logger.info("[예약] 기관배정 팝업 닫기 호출")
                 # 팝업 오버레이가 실제로 사라질 때까지 대기
                 try:

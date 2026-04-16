@@ -381,6 +381,10 @@ class BrowserSession:
                 if "크롬 브라우저" in dialog.message:
                     dialog.accept()
                     return
+                # 브라우저 감지에서 오는 단독 "실패" alert 무시
+                if dialog.message.strip() == "실패":
+                    dialog.accept()
+                    return
                 logger.info("[예약] dialog: type=%s, message=%s", dialog.type, dialog.message)
                 dialog_results.append({"type": dialog.type, "message": dialog.message})
                 dialog.accept()
@@ -411,24 +415,31 @@ class BrowserSession:
                 logger.warning("[예약] 달력 요소 대기 타임아웃")
             _random_delay(page, 1000, 500)
 
-            # Playwright 네이티브 클릭으로 날짜 선택 (trusted event 필요)
-            # showCalendar()로 달력이 표시된 상태이므로 네이티브 클릭 가능
+            # JS evaluate로 날짜 선택 (onclick 직접 호출 — visible 불필요)
             checkin_fmt = f"{checkin_date[:4]}.{checkin_date[4:6]}.{checkin_date[6:]}"
-            checkin_btn = page.locator(f'td.targetDate[data-date="{checkin_fmt}"] button:not([disabled])')
             try:
-                checkin_btn.wait_for(state='visible', timeout=5000)
-                checkin_btn.click()
+                page.wait_for_selector(
+                    f'td.targetDate[data-date="{checkin_fmt}"]', state='attached', timeout=5000)
+                page.evaluate("""(fmt) => {
+                    const td = document.querySelector(`td.targetDate[data-date="${fmt}"]`);
+                    if (td && td.onclick) td.onclick();
+                    else if (td) td.querySelector('button')?.click();
+                }""", checkin_fmt)
             except PlaywrightTimeout:
                 raise BookingError(f"체크인 날짜 {checkin_date} 버튼을 찾을 수 없음")
             logger.info("[예약] 체크인 날짜 %s 클릭 완료", checkin_date)
             _random_delay(page, 2000, 1000)
 
-            # 체크아웃 날짜 클릭 (1박이든 다박이든 항상 명시적 클릭)
+            # 체크아웃 날짜 (1박이든 다박이든 항상 명시적 클릭)
             checkout_fmt = f"{checkout_date[:4]}.{checkout_date[4:6]}.{checkout_date[6:]}"
-            checkout_btn = page.locator(f'td.targetDate[data-date="{checkout_fmt}"] button:not([disabled])')
             try:
-                checkout_btn.wait_for(state='visible', timeout=5000)
-                checkout_btn.click()
+                page.wait_for_selector(
+                    f'td.targetDate[data-date="{checkout_fmt}"]', state='attached', timeout=5000)
+                page.evaluate("""(fmt) => {
+                    const td = document.querySelector(`td.targetDate[data-date="${fmt}"]`);
+                    if (td && td.onclick) td.onclick();
+                    else if (td) td.querySelector('button')?.click();
+                }""", checkout_fmt)
                 logger.info("[예약] 체크아웃 날짜 %s 클릭 완료", checkout_date)
             except PlaywrightTimeout:
                 # 다음날 예약 불가 시 사이트가 자동 설정 ("자동설정" alert)

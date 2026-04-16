@@ -536,9 +536,6 @@
       t.className = 'log-time'; t.textContent = m[1];
       const b = document.createElement('span');
       b.className = 'log-msg'; b.textContent = m[2];
-      if (/\berror|실패|오류/i.test(m[2])) b.style.color = '#ff6b5e';
-      else if (/성공|success|예약 완료/i.test(m[2])) b.style.color = '#5cd679';
-      else if (/warn|경고/i.test(m[2])) b.style.color = '#ffcc00';
       line.appendChild(t); line.appendChild(b);
     } else {
       const b = document.createElement('span');
@@ -780,6 +777,8 @@
   els.btnClearLogs.addEventListener('click', clearLogs);
 
   els.passwordToggle.addEventListener('click', () => {
+    // 서버에서 받은 마스크 값(********)이면 토글 무시
+    if (els.password.value === '********') return;
     const isPwd = els.password.type === 'password';
     els.password.type = isPwd ? 'text' : 'password';
     els.passwordToggle.textContent = isPwd ? '숨김' : '표시';

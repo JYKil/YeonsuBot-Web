@@ -471,26 +471,20 @@ class BrowserSession:
             logger.info("[예약] 날짜 필드 동기화: 체크인=%s, 체크아웃=%s",
                         actual['ci'], actual['co'])
 
-            # 3단계: "선택일로 예약하기" — form.submit() 직접 호출
-            # search() JS 함수는 Chromium에서 Chrome 감지로 실패하므로 우회
+            # 3단계: "선택일로 예약하기" — 날짜 포함 URL로 직접 이동
+            # search() 및 form.submit()은 Chromium에서 날짜를 제대로 전달하지 못하므로 우회
             logger.info("[예약] 선택일로 예약하기 클릭...")
-            page.evaluate("""(code) => {
-                const sel = document.getElementById('ser_yeonsu_gbn');
-                if (sel) sel.value = code;
-            }""", yeonsu_gbn)
-            try:
-                with page.expect_navigation(timeout=15000):
-                    page.evaluate("""() => {
-                        const form = document.querySelector('form');
-                        if (form) form.submit();
-                    }""")
-            except PlaywrightTimeout:
-                # navigation 없이 AJAX로 처리될 수도 있음
-                logger.info("[예약] search() 후 페이지 이동 없음, AJAX 응답 대기")
+            list_url = (
+                f"https://yeonsu.eseoul.go.kr/onlineRsv/list"
+                f"?ser_yeonsu_gbn={yeonsu_gbn}"
+                f"&check_in_day={checkin_date}"
+                f"&check_out_day={checkout_date}"
+            )
+            page.goto(list_url, wait_until="domcontentloaded", timeout=15000)
             try:
                 page.wait_for_load_state('networkidle', timeout=10000)
             except PlaywrightTimeout:
-                logger.warning("[예약] search() 후 네트워크 안정 대기 타임아웃")
+                logger.warning("[예약] 객실 목록 네트워크 안정 대기 타임아웃")
             logger.info("[예약] search() 후 현재 URL: %s", page.url)
             _random_delay(page, 1000, 500)
 

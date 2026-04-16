@@ -92,7 +92,7 @@ def _detect_browser_channel() -> str | None:
 
 
 # JS: 달력에서 예약 가능 날짜 읽기
-# 사이트는 가용 날짜에 td.onclick 핸들러를 붙이는 구조 (button이 아님)
+# 사이트는 모든 td에 onclick을 붙이므로, button의 disabled/day-prev 상태로 판정
 _JS_READ_CALENDAR = """
 (targetDates) => {
     const targetSet = new Set(targetDates);
@@ -107,9 +107,8 @@ _JS_READ_CALENDAR = """
             return;
         }
         const btn = td.querySelector('button');
-        const hasOnclick = typeof td.onclick === 'function';
         const btnOk = btn && !btn.disabled && !btn.classList.contains('day-prev');
-        if (hasOnclick || btnOk) {
+        if (btnOk) {
             available.push(date);
         } else {
             blocked.push(date);

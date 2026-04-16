@@ -29,3 +29,9 @@
 - **원인**: networkidle 타임아웃(10초) 시 페이지가 아직 로딩 중 → `#check_in_day` 등 폼 요소가 DOM에 없음 → `getElementById` null 반환 → `if (ciEl) ciEl.value = ci` 조건에 막혀 날짜 값 설정 안 됨 → search()가 빈 폼으로 실행 → 빈 파라미터로 base URL 이동 → 객실 미로드
 - **수정**: networkidle 후 `page.wait_for_selector('#check_in_day', state='attached', timeout=10000)`로 폼 요소 존재 보장. 폼 필드 설정 evaluate에서 설정 성공 여부 반환하여 로그로 확인. search() 호출 전 현재 URL 로깅.
 - **파일**: `checker.py` (book() 3단계)
+
+## [2026-04-17] 달력 가용 날짜 판정 오류 (2차) — onclick 기반 판정이 불가 날짜를 가능으로 오판
+- **증상**: 20260507이 예약 불가(달력에 파란 원 없음, button disabled)인데 로그에서 "가능"으로 판정 (`가능 ['20260506', '20260507']`)
+- **원인**: 사이트는 **모든 td**에 `onclick="rsvList(...)"` 속성을 붙임. 4/16 수정에서 추가한 `typeof td.onclick === 'function'` 체크가 항상 true 반환 → `hasOnclick || btnOk`에서 disabled button을 가진 불가 날짜도 가능으로 판정. HTML 구조: 가능=`<button>` enabled, 불가=`<button class="day-prev" disabled="disabled">`
+- **수정**: `hasOnclick` 변수 및 OR 조건 제거, `btnOk`(button enabled + day-prev 아님)만으로 판정
+- **파일**: `checker.py` (`_JS_READ_CALENDAR`)

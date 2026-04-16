@@ -108,7 +108,7 @@
   - 제거: `customtkinter`, `tkcalendar`, `pyinstaller`
 
 - [x] **`Dockerfile`** 신규 생성
-  - 베이스: `mcr.microsoft.com/playwright/python:v1.40.0-jammy`
+  - 베이스: `mcr.microsoft.com/playwright/python:v1.58.0-jammy`
   - `PYTHONUNBUFFERED`, `PIP_NO_CACHE_DIR` 최적화
   - 의존성 레이어 캐시 (requirements.txt 먼저 복사)
   - `/data` 볼륨 + `SETTINGS_DIR=/data` 환경변수

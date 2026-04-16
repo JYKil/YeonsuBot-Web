@@ -314,7 +314,7 @@ SETTINGS_FILE = os.path.join(base_dir, "settings.json")
 
 ### `Dockerfile`
 ```dockerfile
-FROM mcr.microsoft.com/playwright/python:v1.40.0-jammy
+FROM mcr.microsoft.com/playwright/python:v1.58.0-jammy
 
 WORKDIR /app
 COPY requirements.txt .

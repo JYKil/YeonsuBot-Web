@@ -30,6 +30,14 @@ uv run python main.py    # → http://localhost:8000
 docker compose up --build
 ```
 
+## 배포 환경
+
+- **VM**: Oracle Cloud Free Tier, `VM.Standard.A1.Flex` (ARM 4 OCPU / 24GB), Ubuntu 22.04
+- **Public IP**: `132.226.23.181`
+- **SSH**: 포트 `2222` (집 네트워크에서 22번 차단으로 대체 포트 사용)
+- **접속**: `ssh yeonsu` (Mac `~/.ssh/config` 별칭 설정 완료)
+- **앱 URL**: http://132.226.23.181:8000
+
 ## 디자인
 
 - Apple 시스템 기반 (SF Pro Text/Display, `#0071e3`, `#f5f5f7`, `#1d1d1f`)

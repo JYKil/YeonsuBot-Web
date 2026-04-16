@@ -20,9 +20,13 @@
 
 속초수련원, 서천연수원, 수안보연수원, 제주연수원, 통영마리나연수원, 경주연수원, 엘리시안강촌연수원, 블룸비스타연수원, 여수히든베이연수원, 여수베네치아연수원
 
+## 배포 주소
+
+**http://132.226.23.181:8000**
+
 ## 사용 방법
 
-1. 브라우저에서 `http://<서버IP>:8000` 접속
+1. 브라우저에서 위 주소 접속 (또는 `http://<서버IP>:8000`)
 2. 아이디, 비밀번호, 연수원, 체크인/체크아웃, 확인 간격 입력
 3. **시작** 버튼 클릭 → 자동 모니터링 + 예약 진행
 4. 상태 뱃지로 진행 상황 확인 (`마지막 확인: 09:23 · 다음 확인: 09:25`)
@@ -39,7 +43,7 @@
 ### 요구사항
 
 - Docker, Docker Compose
-- Oracle Cloud Free Tier VM (ARM `VM.Standard.A1.Flex` — 1 OCPU / 6GB 충분)
+- Oracle Cloud Free Tier VM (ARM `VM.Standard.A1.Flex` — 4 OCPU / 24GB)
 
 ### Oracle Cloud VM 방화벽 설정
 
@@ -47,9 +51,10 @@ Oracle Cloud Security List와 Ubuntu iptables 양쪽 모두 열어야 합니다.
 
 ```bash
 # Oracle Cloud Console → Security List → Ingress Rule 추가
-# TCP 22 (SSH), TCP 8000 (앱)
+# TCP 22 (SSH), TCP 2222 (SSH 대체), TCP 8000 (앱)
 
-# VM 내부 iptables
+# VM 내부 iptables (REJECT 규칙 앞에 삽입)
+sudo iptables -I INPUT 5 -m state --state NEW -p tcp --dport 2222 -j ACCEPT
 sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport 8000 -j ACCEPT
 sudo netfilter-persistent save
 ```
@@ -68,7 +73,7 @@ mkdir -p data
 docker compose up -d --build
 ```
 
-접속: `http://<Oracle-VM-공용-IP>:8000`
+접속: http://132.226.23.181:8000
 
 ### 로컬 테스트
 
@@ -127,6 +132,6 @@ YeonsuBot-Web/
 ## 주의사항
 
 - 본인 1명 전용 설계입니다. 한 번에 한 세션만 돌아갑니다 (실행 중 `/api/start` 재호출 시 409 응답).
-- 단일 Chromium 인스턴스 기준 약 300~400MB RAM 사용. ARM Free Tier 1 OCPU / 6GB 로 충분합니다.
+- 단일 Chromium 인스턴스 기준 약 300~400MB RAM 사용. ARM Free Tier 4 OCPU / 24GB 로 충분합니다.
 - `data/` 디렉토리가 Docker 볼륨으로 마운트되어 설정이 컨테이너 재시작 후에도 유지됩니다.
 - 웹 인증 기능이 없습니다 (URL 알면 접근 가능). 공용 환경에 띄울 계획이면 HTTPS/인증 레이어를 앞에 두세요.

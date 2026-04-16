@@ -9,7 +9,7 @@
 | Phase 2 — FastAPI 백엔드 | ✅ 완료 |
 | Phase 3 — 프론트엔드 | ✅ 완료 |
 | Phase 4 — 패키지 & Docker | ✅ 완료 |
-| Phase 5 — Oracle Cloud 배포 | ⬜ 대기 |
+| Phase 5 — Oracle Cloud 배포 | 🔄 진행 중 (VM 생성 + SSH 완료, Docker 설치 완료) |
 | Phase 6 — 로컬 검증 | ✅ 완료 (REST + WS smoke + UI 시각 확인) |
 
 ---

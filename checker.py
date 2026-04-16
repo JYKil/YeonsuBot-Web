@@ -453,21 +453,23 @@ class BrowserSession:
             if _stopped():
                 raise BookingError("중지 요청됨")
 
-            # _hidden 필드 → 실제 필드로 값 복사 (search()가 읽는 필드)
-            page.evaluate("""() => {
-                const ci = document.getElementById('check_in_day_hidden');
-                const co = document.getElementById('check_out_day_hidden');
-                if (ci && ci.value) {
-                    const dst = document.getElementById('check_in_day');
-                    if (dst) dst.value = ci.value;
-                }
-                if (co && co.value) {
-                    const dst = document.getElementById('check_out_day');
-                    if (dst) dst.value = co.value;
-                }
-            }""")
+            # 날짜 폼 필드 직접 설정 (rsvList()가 hidden 필드를 못 채울 수 있음)
+            page.evaluate("""(ci, co) => {
+                ['check_in_day', 'check_in_day_hidden'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.value = ci;
+                });
+                ['check_out_day', 'check_out_day_hidden'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.value = co;
+                });
+            }""", checkin_date, checkout_date)
+            actual = page.evaluate("""() => ({
+                ci: document.getElementById('check_in_day')?.value || '',
+                co: document.getElementById('check_out_day')?.value || ''
+            })""")
             logger.info("[예약] 날짜 필드 동기화: 체크인=%s, 체크아웃=%s",
-                        checkin_date, checkout_date)
+                        actual['ci'], actual['co'])
 
             # 3단계: "선택일로 예약하기" 클릭
             logger.info("[예약] 선택일로 예약하기 클릭...")

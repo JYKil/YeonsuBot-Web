@@ -257,17 +257,27 @@ class BrowserSession:
                     logger.error("재로그인 후에도 세션 만료")
                     return None
 
-            # 연수원 선택 — URL 파라미터(?ser_yeonsu_gbn=)로 이미 선택됨
-            # <select> 값만 동기화, roomViewSend() 호출 불필요
+            # 연수원 선택 — URL 파라미터로 렌더링되지만 서버 세션은 change 이벤트로 갱신
+            # sel.value = code만으로는 onchange 핸들러가 실행되지 않아 서버 세션 미갱신됨
             facility_name = get_facility_name(yeonsu_gbn)
             page.evaluate(
                 """(code) => {
                     const sel = document.getElementById('ser_yeonsu_gbn');
-                    if (sel) sel.value = code;
+                    if (sel) {
+                        sel.value = code;
+                        // change 이벤트 dispatch → onchange 핸들러 실행 → 서버 세션 갱신
+                        sel.dispatchEvent(new Event('change', {bubbles: true}));
+                    }
                 }""",
                 yeonsu_gbn,
             )
-            logger.info("연수원 '%s' 선택 (코드: %s)", facility_name, yeonsu_gbn)
+            # change 이벤트로 유발된 AJAX 안정화 대기
+            try:
+                page.wait_for_load_state('networkidle', timeout=5000)
+            except PlaywrightTimeout:
+                pass
+            actual_gbn = page.evaluate("document.getElementById('ser_yeonsu_gbn')?.value")
+            logger.info("연수원 '%s' 선택 (코드: %s, 실제 select 값: %s)", facility_name, yeonsu_gbn, actual_gbn)
             _random_delay(page, 1000, 500)
 
             # 달력 읽기
@@ -408,17 +418,27 @@ class BrowserSession:
 
             page.on("dialog", handle_dialog)
 
-            # 1단계: 연수원 선택 — URL 파라미터(?ser_yeonsu_gbn=)로 이미 선택됨
-            # <select> 값만 동기화, roomViewSend() 호출 불필요
+            # 1단계: 연수원 선택 — URL 파라미터로 렌더링되지만 서버 세션은 change 이벤트로 갱신
+            # sel.value = code만으로는 onchange 핸들러가 실행되지 않아 서버 세션 미갱신됨
             facility_name = get_facility_name(yeonsu_gbn)
             page.evaluate(
                 """(code) => {
                     const sel = document.getElementById('ser_yeonsu_gbn');
-                    if (sel) sel.value = code;
+                    if (sel) {
+                        sel.value = code;
+                        // change 이벤트 dispatch → onchange 핸들러 실행 → 서버 세션 갱신
+                        sel.dispatchEvent(new Event('change', {bubbles: true}));
+                    }
                 }""",
                 yeonsu_gbn,
             )
-            logger.info("[예약] 연수원 '%s' 선택 (코드: %s)", facility_name, yeonsu_gbn)
+            # change 이벤트로 유발된 AJAX 안정화 대기
+            try:
+                page.wait_for_load_state('networkidle', timeout=5000)
+            except PlaywrightTimeout:
+                pass
+            actual_gbn = page.evaluate("document.getElementById('ser_yeonsu_gbn')?.value")
+            logger.info("[예약] 연수원 '%s' 선택 (코드: %s, 실제 select 값: %s)", facility_name, yeonsu_gbn, actual_gbn)
             _random_delay(page, 1000, 500)
 
             if _stopped():
@@ -504,8 +524,15 @@ class BrowserSession:
             except PlaywrightTimeout:
                 logger.warning("[예약] 객실 목록 네트워크 안정 대기 타임아웃")
 
-            # 폼 필드에 날짜가 설정되었는지 확인 후 search() 호출로 객실 목록 로드
-            page.evaluate("""([ci, co, code]) => {
+            # networkidle 타임아웃 후에도 폼 요소가 DOM에 없을 수 있으므로
+            # #check_in_day 요소가 실제로 붙을 때까지 대기
+            try:
+                page.wait_for_selector('#check_in_day', state='attached', timeout=10000)
+            except PlaywrightTimeout:
+                logger.warning("[예약] 검색 폼 요소(#check_in_day) 대기 타임아웃")
+
+            # 폼 필드 설정 + 실제 설정 여부 반환으로 검증
+            set_result = page.evaluate("""([ci, co, code]) => {
                 const ciEl = document.getElementById('check_in_day');
                 const coEl = document.getElementById('check_out_day');
                 const selEl = document.getElementById('ser_yeonsu_gbn');
@@ -521,7 +548,17 @@ class BrowserSession:
                     const el = document.getElementById(id);
                     if (el) el.value = co;
                 });
+                return {
+                    ci: ciEl ? ciEl.value : null,
+                    co: coEl ? coEl.value : null,
+                    ci_ok: ciEl ? ciEl.value === ci : false,
+                    co_ok: coEl ? coEl.value === co : false,
+                };
             }""", [checkin_date, checkout_date, yeonsu_gbn])
+            logger.info("[예약] 폼 필드 설정: 체크인=%s(%s), 체크아웃=%s(%s)",
+                        set_result.get('ci'), 'ok' if set_result.get('ci_ok') else '실패',
+                        set_result.get('co'), 'ok' if set_result.get('co_ok') else '실패')
+
             # 사이트가 URL 파라미터를 감지하여 자동으로 객실을 로드했는지 확인
             # (자동 search가 실행되면 alert + AJAX가 이미 진행됨)
             already_loaded = page.evaluate(
@@ -530,6 +567,7 @@ class BrowserSession:
                 logger.info("[예약] 객실 목록 자동 로드 확인, search() 건너뜀")
             else:
                 # 자동 로드 안 됐으면 search() 호출하여 객실 목록 로드
+                logger.info("[예약] search() 호출 (현재 URL: %s)", page.url)
                 try:
                     page.evaluate("search()")
                 except Exception as exc:

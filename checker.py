@@ -471,11 +471,19 @@ class BrowserSession:
             logger.info("[예약] 날짜 필드 동기화: 체크인=%s, 체크아웃=%s",
                         actual['ci'], actual['co'])
 
-            # 3단계: "선택일로 예약하기" 클릭
+            # 3단계: "선택일로 예약하기" — form.submit() 직접 호출
+            # search() JS 함수는 Chromium에서 Chrome 감지로 실패하므로 우회
             logger.info("[예약] 선택일로 예약하기 클릭...")
+            page.evaluate("""(code) => {
+                const sel = document.getElementById('ser_yeonsu_gbn');
+                if (sel) sel.value = code;
+            }""", yeonsu_gbn)
             try:
                 with page.expect_navigation(timeout=15000):
-                    page.evaluate("search()")
+                    page.evaluate("""() => {
+                        const form = document.querySelector('form');
+                        if (form) form.submit();
+                    }""")
             except PlaywrightTimeout:
                 # navigation 없이 AJAX로 처리될 수도 있음
                 logger.info("[예약] search() 후 페이지 이동 없음, AJAX 응답 대기")
@@ -522,9 +530,9 @@ class BrowserSession:
 
             # 5단계: 첫 번째 가용 객실의 "객실선택하기" 클릭
             try:
-                page.wait_for_selector('#room_contents', state='attached', timeout=20000)
+                page.wait_for_selector('#room_contents', state='attached', timeout=10000)
                 page.wait_for_function(
-                    "document.querySelector('input[name=\"termType\"]') !== null", timeout=20000)
+                    "document.querySelector('input[name=\"termType\"]') !== null", timeout=10000)
                 page.evaluate("""() => {
                     const radio = document.querySelector('input[name="termType"]');
                     if (radio) {

@@ -38,6 +38,20 @@ docker compose up --build
 - **접속**: `ssh yeonsu` (Mac `~/.ssh/config` 별칭 설정 완료)
 - **앱 URL**: http://132.226.23.181:8000
 
+## 재배포 흐름
+
+```bash
+# 로컬에서 커밋 + push
+git push
+
+# VM에서 pull + Docker 재빌드
+ssh yeonsu
+cd ~/YeonsuBot-Web
+git pull && docker compose up --build -d
+```
+
+운영 중 버그 수정 이력은 `BUGFIX_LOG.md` 참조.
+
 ## 디자인
 
 - Apple 시스템 기반 (SF Pro Text/Display, `#0071e3`, `#f5f5f7`, `#1d1d1f`)

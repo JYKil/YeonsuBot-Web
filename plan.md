@@ -1,6 +1,6 @@
 # YeonsuBot 웹 전환 계획
 
-## 진행 상황 (2026-04-14)
+## 진행 상황 (2026-04-17)
 
 | Phase | 상태 | 비고 |
 |---|---|---|
@@ -11,10 +11,11 @@
 | Phase 3 — 프론트엔드 (templates/index.html) | ✅ 완료 | `ed2a137` |
 | 선행 — `/review` (pre-landing) | ✅ 완료 | P2 버그 2개 수정 `4a9890c` |
 | Phase 4 — 패키지 & Docker | ✅ 완료 | Dockerfile + docker-compose.yml + .dockerignore + .env.example, gui.py & build-exe.yml 삭제 |
-| Phase 5 — Oracle Cloud 배포 | ⬜ 대기 | 실제 VM 작업 필요 |
+| Phase 5 — Oracle Cloud 배포 | ✅ 완료 | VM `132.226.23.181:8000` 운영 중 (ARM A1.Flex 4 OCPU / 24GB) |
 | Phase 6 — 로컬 검증 | ✅ 완료 | REST smoke + WS + UI 시각 (데스크톱 + 모바일 DevTools) |
+| Phase 7 — 운영 버그 수정 | 🔄 진행 중 | 실사용 중 발견된 이슈 수정, `BUGFIX_LOG.md` 참조 |
 
-작업 세부는 `to-do.md`, 디자인 목업은 `mockups/index.html` 참조.
+작업 세부는 `to-do.md`, 디자인 목업은 `mockups/index.html`, 운영 중 수정 이력은 `BUGFIX_LOG.md` 참조.
 
 ---
 
@@ -343,33 +344,36 @@ services:
 
 ---
 
-## Oracle Cloud 배포
+## Oracle Cloud 배포 (완료, 운영 중)
 
-### VM 생성
-- Shape: `VM.Standard.A1.Flex` (ARM Free Tier, 1 OCPU / 6GB 충분)
+### VM 사양 (실제 할당)
+- Shape: `VM.Standard.A1.Flex` (ARM Free Tier, **4 OCPU / 24GB**)
 - Image: Ubuntu 22.04
-- 공용 IP 할당
+- Public IP: **`132.226.23.181`**
+- SSH 포트: **2222** (집 네트워크에서 22번 차단으로 대체 포트 사용)
+- SSH alias: `ssh yeonsu` (Mac `~/.ssh/config` 설정 완료)
 
-### 방화벽 설정 (두 곳 모두)
-1. Oracle Cloud Security List: TCP 22, 80, 8000 허용
+### 방화벽 설정 (두 곳 모두 열림)
+1. Oracle Cloud Security List: TCP 22, 2222, 8000 허용
 2. Ubuntu iptables:
    ```bash
+   sudo iptables -I INPUT 5 -m state --state NEW -p tcp --dport 2222 -j ACCEPT
    sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport 8000 -j ACCEPT
    sudo netfilter-persistent save
    ```
 
-### 배포
+### 배포 흐름 (업데이트 시)
 ```bash
-sudo apt update && sudo apt install -y docker.io docker-compose-plugin
-sudo usermod -aG docker ubuntu && newgrp docker
+# 로컬에서
+git push
 
-git clone https://github.com/JYKil/yeonsu-bot /opt/yeonsubot
-cd /opt/yeonsubot
-mkdir -p data
-docker compose up -d --build
+# VM에서
+ssh yeonsu
+cd ~/YeonsuBot-Web
+git pull && docker compose up --build -d
 ```
 
-접속: `http://<Oracle-VM-공용-IP>:8000`
+접속: http://132.226.23.181:8000
 
 ---
 

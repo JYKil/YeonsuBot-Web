@@ -59,7 +59,7 @@ sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport 8000 -j ACCEPT
 sudo netfilter-persistent save
 ```
 
-### 배포
+### 최초 배포
 
 ```bash
 # Docker 설치 (VM 최초 1회)
@@ -67,10 +67,22 @@ sudo apt update && sudo apt install -y docker.io docker-compose-plugin
 sudo usermod -aG docker ubuntu && newgrp docker
 
 # 앱 클론 및 실행
-git clone https://github.com/JYKil/YeonsuBot-Web /opt/yeonsubot
-cd /opt/yeonsubot
+git clone https://github.com/JYKil/YeonsuBot-Web ~/YeonsuBot-Web
+cd ~/YeonsuBot-Web
 mkdir -p data
 docker compose up -d --build
+```
+
+### 재배포 (코드 변경 후)
+
+```bash
+# 로컬에서
+git push
+
+# VM에서
+ssh yeonsu              # ~/.ssh/config 별칭 (포트 2222)
+cd ~/YeonsuBot-Web
+git pull && docker compose up --build -d
 ```
 
 접속: http://132.226.23.181:8000
@@ -112,6 +124,8 @@ YeonsuBot-Web/
 ├── docker-compose.yml
 ├── plan.md           # 웹 전환 계획 + 디자인 토큰
 ├── to-do.md          # 작업 체크리스트
+├── BUGFIX_LOG.md     # 운영 중 버그 수정 이력
+├── DESIGN.md         # Apple 시스템 디자인 토큰
 └── data/             # settings.json (Docker 볼륨 마운트)
 ```
 

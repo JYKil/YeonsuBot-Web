@@ -1,6 +1,6 @@
 # YeonsuBot 웹 전환 — 작업 목록
 
-## 진행 상황 (2026-04-14)
+## 진행 상황 (2026-04-17)
 
 | Phase | 상태 |
 |---|---|
@@ -9,8 +9,9 @@
 | Phase 2 — FastAPI 백엔드 | ✅ 완료 |
 | Phase 3 — 프론트엔드 | ✅ 완료 |
 | Phase 4 — 패키지 & Docker | ✅ 완료 |
-| Phase 5 — Oracle Cloud 배포 | 🔄 진행 중 (VM 생성 + SSH 완료, Docker 설치 완료) |
+| Phase 5 — Oracle Cloud 배포 | ✅ 완료 (http://132.226.23.181:8000 운영 중) |
 | Phase 6 — 로컬 검증 | ✅ 완료 (REST + WS smoke + UI 시각 확인) |
+| Phase 7 — 운영 버그 수정 | 🔄 진행 중 (실사용 중 발견된 이슈, `BUGFIX_LOG.md` 참조) |
 
 ---
 
@@ -131,25 +132,39 @@
 
 ---
 
-## Phase 5: Oracle Cloud 배포
+## Phase 5: Oracle Cloud 배포 ✅
 
-- [ ] Oracle Cloud 계정 생성 및 Free Tier VM 생성
-  - Shape: `VM.Standard.A1.Flex` (ARM Free Tier, 1 OCPU / 6GB 충분)
+- [x] Oracle Cloud 계정 생성 및 Free Tier VM 생성
+  - Shape: `VM.Standard.A1.Flex` (ARM Free Tier, **4 OCPU / 24GB** 할당)
   - Image: Ubuntu 22.04
-  - 공용 IP 할당, SSH 키 등록
+  - Public IP: `132.226.23.181`
+  - SSH 포트 2222 (집 네트워크 22번 차단으로 대체)
+  - `~/.ssh/config` 별칭 `yeonsu` 설정 완료
 
-- [ ] Security List에서 포트 개방
-  - Oracle Cloud Security List: TCP 22, 80, 8000
-  - Ubuntu iptables: 포트 8000 허용 + 저장
+- [x] Security List + iptables 포트 개방
+  - Oracle Cloud Security List: TCP 22, 2222, 8000
+  - Ubuntu iptables: 2222/8000 허용 + netfilter-persistent save
 
-- [ ] VM에 Docker 설치
+- [x] VM에 Docker 설치 + docker-compose-plugin
 
-- [ ] 앱 클론 + 빌드 + 실행
+- [x] 앱 클론 + 빌드 + 실행
   ```bash
-  git clone https://github.com/JYKil/YeonsuBot-Web /opt/yeonsubot
-  cd /opt/yeonsubot && mkdir -p data
+  git clone https://github.com/JYKil/YeonsuBot-Web ~/YeonsuBot-Web
+  cd ~/YeonsuBot-Web && mkdir -p data
   docker compose up -d --build
   ```
+
+### 재배포 흐름 (현재 운영)
+
+```bash
+# 로컬에서 커밋 + push
+git push
+
+# VM에서 pull + 재빌드
+ssh yeonsu
+cd ~/YeonsuBot-Web
+git pull && docker compose up --build -d
+```
 
 ### Oracle Cloud Free Tier VM 생성 가이드
 
@@ -323,4 +338,34 @@ docker compose up -d --build
 ### Docker & 배포
 
 - [x] Docker: 로컬 macOS (Docker Desktop) 에서 `docker compose up --build` 정상 동작 확인
-- [ ] Oracle Cloud VM에서 `http://<공용IP>:8000` 접속 확인
+- [x] Oracle Cloud VM에서 `http://132.226.23.181:8000` 접속 확인 (ARM Chromium 정상 기동)
+
+---
+
+## Phase 7: 운영 버그 수정 (실사용 중 발견) 🔄
+
+전체 증상/원인/수정 상세는 `BUGFIX_LOG.md`. 아래는 한 줄 요약.
+
+### 예약 플로우 버그
+
+- [x] **객실 목록 로드 실패** — URL 이동 후 `search()` 명시적 호출 (`b38106f`)
+- [x] **객실 목록을 날짜 포함 URL로 직접 이동** (`c354ae3`)
+- [x] **달력 초기화 대기** — `showCalendar` 정의 대기 + 버튼 enabled 대기 (`4e18b8f`)
+- [x] **달력 가용 날짜 판정** — `td.onclick` 핸들러도 확인 (button 전용 → 미검출) (`597c8ec`)
+- [x] **객실선택 radio button** — name 속성으로 탐색 (`119d7b5`)
+- [x] **객실선택 대기 시간** 10s → 20s (총 40s) (`7ed3be3`)
+- [x] **객실 목록 로드 판정** — 자동 로드 확인으로 search() 중복 호출 방지
+- [x] **결과 판정 순서** — dialog 체크를 네비게이션보다 먼저 (`1d66b85`)
+- [x] **연수원 선택** — `change` 이벤트 dispatch로 서버 세션 갱신 (`7bf3a21`)
+- [x] **객실 목록 페이지 폼 요소 대기** — `#check_in_day` attach 대기 (`7bf3a21`)
+
+### 기타
+
+- [x] stop 후 상태 덮어쓰기 방지 + 대상 표시 개선 (`1a49f00`)
+- [x] Slack Webhook URL 갱신 (`d62366d`)
+- [x] page.evaluate 인자 리스트로 전달 (`5678de5`)
+
+### 남은 관찰 포인트
+
+- [ ] 연속 장시간 운영 시 브라우저 재시작(50회) 동작 검증
+- [ ] 실제 빈방 발생 시 전체 예약 플로우 E2E 검증

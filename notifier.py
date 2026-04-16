@@ -2,13 +2,14 @@
 
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 
 import requests
 
 logger = logging.getLogger(__name__)
 
 SLACK_WEBHOOK_URL = "https://hooks.slack.com/services/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"
+KST = timezone(timedelta(hours=9))
 
 
 def _post_webhook(webhook_url: str, payload: dict) -> bool:
@@ -43,7 +44,7 @@ def send_slack_notification(
         logger.warning("Slack 웹훅 URL이 설정되지 않았습니다.")
         return False
 
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    now = datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S")
     checkin_short = checkin[5:] if len(checkin) >= 10 else checkin
     checkout_short = checkout[5:] if len(checkout) >= 10 else checkout
 
@@ -81,18 +82,16 @@ def send_booking_success(
     if not webhook_url:
         return False
 
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     checkin_short = checkin[4:6] + "-" + checkin[6:] if len(checkin) == 8 else checkin[5:] if len(checkin) >= 10 else checkin
     checkout_short = checkout[4:6] + "-" + checkout[6:] if len(checkout) == 8 else checkout[5:] if len(checkout) >= 10 else checkout
-    date_str = datetime.now().strftime("%m-%d %H:%M")
+    date_str = datetime.now(KST).strftime("%m-%d %H:%M")
 
     text = (
         f"<!channel> 🎉 예약 완료!\n"
         f"요청자: {username}\n"
         f"연수원: {facility_name}\n"
         f"체크인/아웃: {checkin_short}~{checkout_short}\n"
-        f"예약일: {date_str}\n"
-        f"확인시간: {now}"
+        f"예약시간: {date_str}"
     )
 
     ok = _post_webhook(webhook_url, {"text": text})
@@ -112,7 +111,7 @@ def send_booking_failure(
     if not webhook_url:
         return False
 
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    now = datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S")
     date_str = booked_date[4:6] + "-" + booked_date[6:] if len(booked_date) == 8 else booked_date
 
     text = (

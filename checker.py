@@ -258,7 +258,8 @@ class BrowserSession:
                     const sel = document.getElementById('ser_yeonsu_gbn');
                     if (!sel) return false;
                     sel.value = code;
-                    roomViewSend();
+                    if (typeof roomViewSend === 'function') roomViewSend();
+                    else sel.dispatchEvent(new Event('change', {bubbles: true}));
                     return true;
                 }""",
                 yeonsu_gbn,
@@ -405,7 +406,8 @@ class BrowserSession:
                     const sel = document.getElementById('ser_yeonsu_gbn');
                     if (!sel) return false;
                     sel.value = code;
-                    roomViewSend();
+                    if (typeof roomViewSend === 'function') roomViewSend();
+                    else sel.dispatchEvent(new Event('change', {bubbles: true}));
                     return true;
                 }""",
                 yeonsu_gbn,

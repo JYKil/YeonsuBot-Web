@@ -481,6 +481,7 @@ class BrowserSession:
                 page.wait_for_load_state('networkidle', timeout=10000)
             except PlaywrightTimeout:
                 logger.warning("[예약] search() 후 네트워크 안정 대기 타임아웃")
+            logger.info("[예약] search() 후 현재 URL: %s", page.url)
             _random_delay(page, 1000, 500)
 
             # 4단계: 기관배정 팝업 닫기 (#notiNoRsvA → noRsvClose())
@@ -519,10 +520,16 @@ class BrowserSession:
 
             # 5단계: 첫 번째 가용 객실의 "객실선택하기" 클릭
             try:
-                page.wait_for_selector('label[for^="termType"]', state='attached', timeout=10000)
+                page.wait_for_selector('#room_contents', state='attached', timeout=10000)
+                page.wait_for_function(
+                    "document.querySelector('#termType001') !== null", timeout=10000)
                 page.evaluate("""() => {
-                    const label = document.querySelector('label[for^="termType"]');
-                    if (label) label.click();
+                    const radio = document.getElementById('termType001');
+                    if (radio) {
+                        radio.checked = true;
+                        radio.click();
+                        radio.dispatchEvent(new Event('change', {bubbles: true}));
+                    }
                 }""")
             except PlaywrightTimeout:
                 raise BookingError("'객실선택하기' 버튼을 찾을 수 없음")

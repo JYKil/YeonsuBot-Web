@@ -536,6 +536,7 @@
       t.className = 'log-time'; t.textContent = m[1];
       const b = document.createElement('span');
       b.className = 'log-msg'; b.textContent = m[2];
+      if (/예약 성공/.test(m[2])) b.style.color = '#5cd679';
       line.appendChild(t); line.appendChild(b);
     } else {
       const b = document.createElement('span');

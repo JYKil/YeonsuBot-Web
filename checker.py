@@ -87,7 +87,7 @@ def _detect_browser_channel() -> str | None:
                 logger.info("시스템 브라우저 사용: %s", channel)
                 return channel
 
-    logger.info("시스템 브라우저 미발견, Playwright 내장 Chromium으로 폴백")
+    logger.debug("시스템 브라우저 미발견, Playwright 내장 Chromium으로 폴백")
     return None
 
 

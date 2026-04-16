@@ -532,6 +532,11 @@ class BrowserSession:
                     }
                 }""")
             except PlaywrightTimeout:
+                try:
+                    body_text = page.inner_text('body')[:500]
+                    logger.warning("[예약] 객실 페이지 내용: %s", body_text)
+                except Exception:
+                    pass
                 raise BookingError("'객실선택하기' 버튼을 찾을 수 없음")
             logger.info("[예약] 객실선택하기 클릭 완료")
 

@@ -2,7 +2,7 @@
 
 놀러다니기 좋아하는 내 친구 한수를 위해 만드는 서울시 공무원 연수원 자동 예약 프로그램
 
-브라우저에서 접속해 사용하는 웹 버전. 본인 1명 전용, 한 번에 한 세션만 돌리는 **단일 슬롯** 구조. Oracle Cloud Free Tier VM에 Docker로 배포.
+브라우저에서 접속해 사용하는 웹 버전. 본인 1명 전용, 한 번에 한 세션만 돌리는 **단일 슬롯** 구조. Beelink EQR6 미니 PC(Ubuntu)에 Docker로 배포, GitLab + Jenkins CI/CD.
 
 ## 기능
 
@@ -22,11 +22,12 @@
 
 ## 배포 주소
 
-**http://132.226.23.181:8000**
+- **LAN**: http://192.168.75.205:3000
+- **외부**: http://kilga-server.duckdns.org:3000
 
 ## 사용 방법
 
-1. 브라우저에서 위 주소 접속 (또는 `http://<서버IP>:8000`)
+1. 브라우저에서 위 주소 접속 (또는 `http://<서버IP>:3000`)
 2. 아이디, 비밀번호, 연수원, 체크인/체크아웃, 확인 간격 입력
 3. **시작** 버튼 클릭 → 자동 모니터링 + 예약 진행
 4. 상태 뱃지로 진행 상황 확인 (`마지막 확인: 09:23 · 다음 확인: 09:25`)
@@ -38,60 +39,49 @@
 - 정적 목업: `mockups/index.html` (브라우저로 열어 확인)
 - 단일 패널 UI — 설정 패널 좌(40%) / 로그 뷰어 우(60%), 모바일 시 세로 스택
 
-## 배포 (Docker + Oracle Cloud)
+## 배포 (Docker + Beelink + CI/CD)
 
 ### 요구사항
 
+- Beelink EQR6 (Ubuntu, x86_64)
 - Docker, Docker Compose
-- Oracle Cloud Free Tier VM (ARM `VM.Standard.A1.Flex` — 4 OCPU / 24GB)
+- GitLab (http://192.168.75.205:8929)
+- Jenkins (http://192.168.75.205:8080)
 
-### Oracle Cloud VM 방화벽 설정
+### CI/CD 흐름
 
-Oracle Cloud Security List와 Ubuntu iptables 양쪽 모두 열어야 합니다.
-
-```bash
-# Oracle Cloud Console → Security List → Ingress Rule 추가
-# TCP 22 (SSH), TCP 2222 (SSH 대체), TCP 8000 (앱)
-
-# VM 내부 iptables (REJECT 규칙 앞에 삽입)
-sudo iptables -I INPUT 5 -m state --state NEW -p tcp --dport 2222 -j ACCEPT
-sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport 8000 -j ACCEPT
-sudo netfilter-persistent save
-```
-
-### 최초 배포
+GitLab push → Jenkins 웹훅 자동 트리거 → 빌드 + 배포 + 헬스체크
 
 ```bash
-# Docker 설치 (VM 최초 1회)
-sudo apt update && sudo apt install -y docker.io docker-compose-plugin
-sudo usermod -aG docker ubuntu && newgrp docker
-
-# 앱 클론 및 실행
-git clone https://github.com/JYKil/YeonsuBot-Web ~/YeonsuBot-Web
-cd ~/YeonsuBot-Web
-mkdir -p data
-docker compose up -d --build
+# 코드 변경 후 push만 하면 자동 배포
+git push gitlab master
 ```
 
-### 재배포 (코드 변경 후)
+Jenkins 파이프라인 (`Jenkinsfile`):
+1. 준비 — `mkdir -p data`
+2. 빌드 — `docker compose build --pull`
+3. 배포 — `docker compose up -d --force-recreate`
+4. 헬스체크 — `curl http://localhost:3000/api/status`
+
+배포 디렉토리: `/opt/yeonsubot` (settings.json이 이 경로 아래 영속)
+
+### Jenkins 초기 설정 (최초 1회)
 
 ```bash
-# 로컬에서
-git push
+# Jenkins 사용자에게 Docker 권한 부여
+sudo usermod -aG docker jenkins
+sudo systemctl restart jenkins
 
-# VM에서
-ssh yeonsu              # ~/.ssh/config 별칭 (포트 2222)
-cd ~/YeonsuBot-Web
-git pull && docker compose up --build -d
+# 배포 디렉토리 생성 및 권한 설정
+sudo mkdir -p /opt/yeonsubot/data
+sudo chown -R jenkins:jenkins /opt/yeonsubot
 ```
-
-접속: http://132.226.23.181:8000
 
 ### 로컬 테스트
 
 ```bash
 docker compose up --build
-# http://localhost:8000 접속
+# http://localhost:3000 접속
 ```
 
 ### 로컬 개발 (Docker 없이)
@@ -99,10 +89,10 @@ docker compose up --build
 ```bash
 uv sync                    # 최초 1회, pyproject.toml 기준 .venv 생성
 uv run python main.py      # FastAPI + uvicorn 기동
-# http://localhost:8000 접속
+# http://localhost:3000 접속
 ```
 
-macOS/Windows에 Google Chrome이 설치돼 있으면 시스템 Chrome을 자동 감지해서 사용하고, 없으면 Playwright 내장 Chromium으로 폴백합니다. Docker(ARM64) 환경에서는 Chrome 미지원으로 Chromium을 사용합니다.
+macOS/Windows에 Google Chrome이 설치돼 있으면 시스템 Chrome을 자동 감지해서 사용하고, 없으면 Playwright 내장 Chromium으로 폴백합니다. Docker(Linux) 환경에서는 Playwright 내장 Chromium을 사용합니다.
 
 ## 프로젝트 구조
 
@@ -141,11 +131,11 @@ YeonsuBot-Web/
 | HTTP | requests |
 | 알림 | Slack Incoming Webhook |
 | 컨테이너 | Docker (`mcr.microsoft.com/playwright/python`) |
-| 배포 | Oracle Cloud Free Tier (ARM VM) |
+| 배포 | Beelink EQR6 (Ubuntu, x86_64) + Docker + GitLab/Jenkins CI/CD |
 
 ## 주의사항
 
 - 본인 1명 전용 설계입니다. 한 번에 한 세션만 돌아갑니다 (실행 중 `/api/start` 재호출 시 409 응답).
-- 단일 Chromium 인스턴스 기준 약 300~400MB RAM 사용. ARM Free Tier 4 OCPU / 24GB 로 충분합니다.
+- 단일 Chromium 인스턴스 기준 약 300~400MB RAM 사용. Beelink EQR6 사양으로 충분합니다.
 - `data/` 디렉토리가 Docker 볼륨으로 마운트되어 설정이 컨테이너 재시작 후에도 유지됩니다.
 - 웹 인증 기능이 없습니다 (URL 알면 접근 가능). 공용 환경에 띄울 계획이면 HTTPS/인증 레이어를 앞에 두세요.

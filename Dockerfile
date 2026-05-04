@@ -6,7 +6,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     SETTINGS_DIR=/data \
     HOST=0.0.0.0 \
-    PORT=8000
+    PORT=3000
 
 WORKDIR /app
 
@@ -21,6 +21,6 @@ COPY . .
 RUN mkdir -p /data
 VOLUME ["/data"]
 
-EXPOSE 8000
+EXPOSE 3000
 
 CMD ["python", "main.py"]

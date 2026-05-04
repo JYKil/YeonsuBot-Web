@@ -2,7 +2,7 @@
 
 ## 프로젝트 개요
 
-서울시 공무원 연수원(https://yeonsu.eseoul.go.kr/) 예약 가능 날짜를 주기적으로 모니터링하고, 빈방 발견 시 자동 예약하는 **웹 앱** (FastAPI + WebSocket). 본인 1명 전용, 단일 슬롯 구조. Oracle Cloud Free Tier VM에 Docker로 배포.
+서울시 공무원 연수원(https://yeonsu.eseoul.go.kr/) 예약 가능 날짜를 주기적으로 모니터링하고, 빈방 발견 시 자동 예약하는 **웹 앱** (FastAPI + WebSocket). 본인 1명 전용, 단일 슬롯 구조. Beelink EQR6 미니 PC(Ubuntu)에 Docker로 배포, GitLab + Jenkins CI/CD.
 
 이전 CustomTkinter 데스크톱 버전에서 웹으로 전환됨. 비즈니스 로직(`checker.py`, `scheduler.py`, `notifier.py`, `facilities.py`)은 GUI 의존성이 없어 그대로 재사용하고 GUI 레이어만 FastAPI + HTML로 교체.
 
@@ -24,7 +24,7 @@
 ```bash
 # 로컬 (Docker 없이) — pyproject.toml 기반
 uv sync                  # 최초 1회
-uv run python main.py    # → http://localhost:8000
+uv run python main.py    # → http://localhost:3000
 
 # Docker
 docker compose up --build
@@ -35,23 +35,30 @@ HEADLESS=false uv run python main.py
 
 ## 배포 환경
 
-- **VM**: Oracle Cloud Free Tier, `VM.Standard.A1.Flex` (ARM 4 OCPU / 24GB), Ubuntu 22.04
-- **Public IP**: `132.226.23.181`
-- **SSH**: 포트 `2222` (집 네트워크에서 22번 차단으로 대체 포트 사용)
-- **접속**: `ssh yeonsu` (Mac `~/.ssh/config` 별칭 설정 완료)
-- **앱 URL**: http://132.226.23.181:8000
+- **서버**: Beelink EQR6 미니 PC, Ubuntu, x86_64
+- **LAN IP**: `192.168.75.205`
+- **외부 도메인**: `kilga-server.duckdns.org` (DuckDNS)
+- **앱 URL (LAN)**: http://192.168.75.205:3000
+- **앱 URL (외부)**: http://kilga-server.duckdns.org:3000
+- **GitLab**: http://192.168.75.205:8929 / http://kilga-server.duckdns.org:8929
+- **Jenkins**: http://192.168.75.205:8080 / http://kilga-server.duckdns.org:8080
 
-## 재배포 흐름
+## 재배포 흐름 (CI/CD)
+
+GitLab push → Jenkins 웹훅 자동 트리거 → 빌드 + 배포 + 헬스체크
 
 ```bash
-# 로컬에서 커밋 + push
-git push
-
-# VM에서 pull + Docker 재빌드
-ssh yeonsu
-cd ~/YeonsuBot-Web
-git pull && docker compose up --build -d
+# 로컬에서 커밋 + push 만 하면 자동 배포됨
+git push origin master
 ```
+
+Jenkins 파이프라인 (`Jenkinsfile`):
+1. 준비 — `mkdir -p data` (볼륨 디렉토리 보장)
+2. 빌드 — `docker compose build --pull`
+3. 배포 — `docker compose up -d --force-recreate`
+4. 헬스체크 — `curl http://localhost:3000/api/status`
+
+배포 디렉토리: `/opt/yeonsubot` (settings.json 볼륨이 이 경로 아래 영속)
 
 운영 중 버그 수정 이력은 `BUGFIX_LOG.md` 참조.
 

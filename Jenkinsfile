@@ -11,11 +11,13 @@ pipeline {
         buildDiscarder(logRotator(numToKeepStr: '5'))
         timeout(time: 15, unit: 'MINUTES')
         disableConcurrentBuilds()
+        gitLabConnection('gitlab')
     }
 
     stages {
         stage('준비') {
             steps {
+                updateGitlabCommitStatus name: 'jenkins', state: 'running'
                 // settings.json 볼륨 마운트 디렉토리 보장
                 sh 'mkdir -p data'
             }
@@ -46,9 +48,16 @@ pipeline {
     }
 
     post {
+        success {
+            updateGitlabCommitStatus name: 'jenkins', state: 'success'
+        }
         failure {
+            updateGitlabCommitStatus name: 'jenkins', state: 'failed'
             // 실패 시 컨테이너 로그 출력 (Jenkins 빌드 로그에서 확인)
             sh 'docker compose logs --tail=100 || true'
+        }
+        aborted {
+            updateGitlabCommitStatus name: 'jenkins', state: 'canceled'
         }
         always {
             // 댕글링 이미지 정리

@@ -39,7 +39,7 @@ pipeline {
                 script {
                     // 컨테이너 기동 + Playwright 초기화 대기
                     sleep(time: 20, unit: 'SECONDS')
-                    sh 'curl -fsS http://localhost:3000/api/status'
+                    sh 'curl -fsS http://192.168.75.205:3000/api/status'
                 }
             }
         }

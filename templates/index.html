@@ -175,6 +175,8 @@
   /* Form */
   .form { display: flex; flex-direction: column; gap: var(--space-4); }
   .field { display: flex; flex-direction: column; gap: var(--space-2); }
+  .field-row { display: flex; gap: var(--space-3); }
+  .field-row .field { flex: 1; min-width: 0; }
   label {
     font-size: 14px; font-weight: 600;
     line-height: 1.29; letter-spacing: -0.224px;
@@ -311,6 +313,7 @@
     .log-stream { flex: 0 0 auto; max-height: calc(1.5em * 15 + 8px); }
     /* 실행 중에는 입력 필드 + 폼 내 보조 버튼 숨김 */
     body.running .form .field,
+    body.running .form .field-row,
     body.running .form .btn-secondary { display: none; }
   }
 </style>
@@ -354,13 +357,15 @@
         <label for="facility">연수원</label>
         <select id="facility"></select>
       </div>
-      <div class="field">
-        <label for="checkin">체크인</label>
-        <input id="checkin" type="date">
-      </div>
-      <div class="field">
-        <label for="checkout">체크아웃</label>
-        <input id="checkout" type="date">
+      <div class="field-row">
+        <div class="field">
+          <label for="checkin">체크인</label>
+          <input id="checkin" type="date">
+        </div>
+        <div class="field">
+          <label for="checkout">체크아웃</label>
+          <input id="checkout" type="date">
+        </div>
       </div>
       <div class="field">
         <label for="interval">점검 주기 (분)</label>

@@ -8,6 +8,9 @@ import logging
 from collections import deque
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
+
+_KST = ZoneInfo("Asia/Seoul")
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
@@ -106,7 +109,7 @@ class WebSocketLogHandler(logging.Handler):
 
     def emit(self, record: logging.LogRecord) -> None:
         try:
-            ts = datetime.fromtimestamp(record.created).strftime("%H:%M:%S")
+            ts = datetime.fromtimestamp(record.created, tz=_KST).strftime("%H:%M:%S")
             msg = self.format(record)
             line = f"{ts} [{record.levelname}] {msg}"
             entry = state.append_log(line)

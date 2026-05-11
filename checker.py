@@ -165,7 +165,34 @@ class BrowserSession:
         self._context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
 
         self._do_login()
+        self._sync_facility_codes()
         logger.info("브라우저 세션 시작 완료")
+
+    def _sync_facility_codes(self):
+        """사이트 드롭다운에서 실제 코드를 파싱하여 FACILITIES 자동 갱신."""
+        from facilities import FACILITIES, update_facility_codes, CODE_TO_NAME
+        page = self._context.new_page()
+        try:
+            page.goto(ONLINE_RSV_URL, wait_until="domcontentloaded", timeout=15000)
+            options = page.evaluate("""() => {
+                const sel = document.getElementById('ser_yeonsu_gbn');
+                if (!sel) return [];
+                return Array.from(sel.options)
+                    .filter(o => o.value && o.value !== '0')
+                    .map(o => ({value: o.value, text: o.text.trim()}));
+            }""")
+            parsed = {o['text']: o['value'] for o in options if o['text']}
+            if parsed:
+                update_facility_codes(parsed)
+                for name, code in parsed.items():
+                    if name not in FACILITIES:
+                        FACILITIES[name] = code
+                        CODE_TO_NAME[code] = name
+                        logger.info("새 시설 등록: %s → %s", name, code)
+        except Exception as exc:
+            logger.warning("시설 코드 동기화 실패 (정적 코드 사용): %s", exc)
+        finally:
+            page.close()
 
     def _do_login(self):
         """로그인 수행. 세션 쿠키가 context에 설정된다."""

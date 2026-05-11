@@ -11,7 +11,6 @@
 - 실시간 로그 스트리밍 (WebSocket)
 - 재접속/새 탭 열어도 최근 200줄 로그 복원
 - 설정 자동 저장/복원 (`settings.json`)
-- Slack 알림 (예약 성공/실패)
 - 세션 만료 시 자동 재로그인
 - 메모리 누수 방지를 위한 브라우저 주기적 재시작
 - 장시간 대기 UX: 마지막/다음 확인 시각 + 대상 표시
@@ -31,13 +30,14 @@
 2. 아이디, 비밀번호, 연수원, 체크인/체크아웃, 확인 간격 입력
 3. **시작** 버튼 클릭 → 자동 모니터링 + 예약 진행
 4. 상태 뱃지로 진행 상황 확인 (`마지막 확인: 09:23 · 다음 확인: 09:25`)
-5. 예약 완료 시 Slack 알림 후 자동 중지 + "예약완료" 뱃지
+5. 예약 완료 시 자동 중지 + "예약완료" 뱃지
 
 ## 디자인
 
 - 디자인 시스템: `DESIGN.md` (Apple 시스템, SF Pro, `#0071e3`, `#f5f5f7`)
 - 정적 목업: `mockups/index.html` (브라우저로 열어 확인)
 - 단일 패널 UI — 설정 패널 좌(40%) / 로그 뷰어 우(60%), 모바일 시 세로 스택
+- 모바일에서 체크인/체크아웃 날짜 필드 한 줄 나란히 배치
 
 ## 배포 (Docker + Beelink + CI/CD)
 
@@ -102,7 +102,7 @@ YeonsuBot-Web/
 ├── web_server.py     # FastAPI 앱 (AppState, /ws, lifespan)
 ├── checker.py        # Playwright 기반 예약 확인 + 자동 예약 (Chromium 폴백 포함)
 ├── scheduler.py      # 워커 스레드 + 주기적 모니터링
-├── notifier.py       # Slack 웹훅 알림
+├── notifier.py       # 알림 모듈 (현재 미사용, 텔레그램 전환 예정)
 ├── config.py         # settings.json 저장/불러오기 (SETTINGS_DIR 환경변수)
 ├── facilities.py     # 10개 연수원 이름↔코드 매핑
 ├── templates/
@@ -129,7 +129,7 @@ YeonsuBot-Web/
 | 디자인 시스템 | Apple 시스템 (SF Pro, `#0071e3`) |
 | 브라우저 자동화 | Playwright (로컬: 시스템 Chrome 감지, Docker/ARM64: Chromium) |
 | HTTP | requests |
-| 알림 | Slack Incoming Webhook |
+| 알림 | 미사용 (텔레그램 전환 예정) |
 | 컨테이너 | Docker (`mcr.microsoft.com/playwright/python`) |
 | 배포 | Beelink EQR6 (Ubuntu, x86_64) + Docker + GitLab/Jenkins CI/CD |
 

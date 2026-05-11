@@ -7,10 +7,9 @@ import json
 import logging
 from collections import deque
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
+from datetime import datetime, timedelta, timezone
 
-_KST = ZoneInfo("Asia/Seoul")
+_KST = timezone(timedelta(hours=9))
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect

@@ -17,7 +17,6 @@ from fastapi.responses import HTMLResponse, JSONResponse
 
 import config
 import facilities
-import notifier
 from checker import date_range
 from scheduler import BookingResult, MonitorScheduler
 
@@ -289,13 +288,6 @@ async def api_stop() -> JSONResponse:
     state.current_status = "중지"
     return JSONResponse(_status_payload())
 
-
-@app.post("/api/slack/test")
-async def api_slack_test() -> JSONResponse:
-    ok = notifier.send_test_notification(notifier.SLACK_WEBHOOK_URL)
-    if not ok:
-        raise HTTPException(status_code=502, detail="Slack 전송 실패")
-    return JSONResponse({"ok": True})
 
 
 @app.post("/api/logs/clear")

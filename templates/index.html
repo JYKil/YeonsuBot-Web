@@ -370,7 +370,6 @@
       <button class="btn-primary" id="btn-start" type="button">START</button>
       <button class="btn-stop" id="btn-stop" type="button" style="display:none">STOP</button>
 
-      <button class="btn-secondary" id="btn-slack" type="button">Slack 테스트</button>
       <button class="btn-secondary" id="btn-clear-logs" type="button">로그 지우기</button>
     </form>
   </section>
@@ -403,7 +402,6 @@
     statusSub: $('status-sub'),
     btnStart: $('btn-start'),
     btnStop: $('btn-stop'),
-    btnSlack: $('btn-slack'),
     btnClearLogs: $('btn-clear-logs'),
     form: $('form'),
     username: $('username'),
@@ -759,29 +757,10 @@
     }
   }
 
-  async function testSlack() {
-    els.btnSlack.disabled = true;
-    const prev = els.btnSlack.textContent;
-    els.btnSlack.textContent = '전송 중...';
-    try {
-      const r = await fetch('/api/slack/test', { method: 'POST' });
-      if (r.ok) toast('Slack 전송 성공', 'success');
-      else {
-        const err = await r.json().catch(() => ({ detail: '전송 실패' }));
-        toast('Slack 전송 실패: ' + (err.detail || ''), 'error');
-      }
-    } catch (e) {
-      toast('Slack 전송 실패: ' + e.message, 'error');
-    } finally {
-      els.btnSlack.disabled = false;
-      els.btnSlack.textContent = prev;
-    }
-  }
 
   // ── Event wiring ─────────────────────────────────────────
   els.btnStart.addEventListener('click', startBot);
   els.btnStop.addEventListener('click', stopBot);
-  els.btnSlack.addEventListener('click', testSlack);
   els.btnClearLogs.addEventListener('click', clearLogs);
 
   els.passwordToggle.addEventListener('click', () => {

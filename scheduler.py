@@ -2,10 +2,8 @@
 
 import logging
 import threading
-from datetime import datetime, timedelta
 from enum import Enum, auto
 
-import notifier
 from checker import BrowserSession, BookingError, LoginError, BrowserNotFoundError
 from facilities import get_facility_name
 
@@ -188,7 +186,6 @@ class MonitorScheduler:
           # UI 버튼 즉시 토글을 위해 _running 선반영 (finally에서 session.stop()이
           # 브라우저 정리하는 동안 UI가 STOP 상태로 남지 않도록)
           self._running = False
-          self._send_slack_success()
           self._notify_status("중지됨")
           self._notify_booking_result(BookingResult.SUCCESS, self._target_dates[0])
           stop_event.set()  # 예약 성공 시 루프 종료
@@ -204,19 +201,6 @@ class MonitorScheduler:
     if not stop_event.is_set():
       self._notify_status("모니터링 중")
     self._notify_booking_result(BookingResult.FAILED, self._target_dates[0])
-
-  def _send_slack_success(self):
-    try:
-      notifier.send_booking_success(
-        notifier.SLACK_WEBHOOK_URL,
-        facility_name=get_facility_name(self._yeonsu_gbn),
-        booked_date=self._target_dates[0],
-        username=self._username,
-        checkin=self._target_dates[0],
-        checkout=(datetime.strptime(self._target_dates[-1], "%Y%m%d") + timedelta(days=1)).strftime("%Y%m%d"),
-      )
-    except Exception as exc:
-      logger.warning("Slack 성공 알림 실패: %s", exc)
 
   def _notify_status(self, status: str):
     if self.on_status_change:

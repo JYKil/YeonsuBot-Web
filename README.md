@@ -2,18 +2,20 @@
 
 놀러다니기 좋아하는 내 친구 한수를 위해 만드는 서울시 공무원 연수원 자동 예약 프로그램
 
-브라우저에서 접속해 사용하는 웹 버전. 본인 1명 전용, 한 번에 한 세션만 돌리는 **단일 슬롯** 구조. Beelink EQR6 미니 PC(Ubuntu)에 Docker로 배포, GitLab + Jenkins CI/CD.
+브라우저에서 접속해 사용하는 웹 버전. 최대 3명이 각자 계정으로 동시 로그인해 독립적으로 봇을 운영할 수 있는 **멀티유저** 구조. Beelink EQR6 미니 PC(Ubuntu)에 Docker로 배포, GitLab + Jenkins CI/CD.
 
 ## 기능
 
+- 연수원 사이트 자격(아이디/비밀번호)으로 로그인, 최대 3명 동시 사용
 - 10개 연수원 예약 가능 날짜 자동 모니터링
 - 전체 범위 빈방 발견 시 자동 예약 → 성공 시 자동 중지
-- 실시간 로그 스트리밍 (WebSocket)
+- 실시간 로그 스트리밍 (WebSocket, 사용자별 격리)
 - 재접속/새 탭 열어도 최근 200줄 로그 복원
-- 설정 자동 저장/복원 (`settings.json`)
+- 사용자별 설정 자동 저장/복원 (`data/users/<username>/settings.json`)
 - 세션 만료 시 자동 재로그인
 - 메모리 누수 방지를 위한 브라우저 주기적 재시작
 - 장시간 대기 UX: 마지막/다음 확인 시각 + 대상 표시
+- 같은 브라우저 프로필에서 창 여러 개로 서로 다른 계정 동시 운용 가능 (sessionStorage 기반 창별 세션 격리)
 
 ## 지원 연수원
 
@@ -27,10 +29,12 @@
 ## 사용 방법
 
 1. 브라우저에서 위 주소 접속 (또는 `http://<서버IP>:3000`)
-2. 아이디, 비밀번호, 연수원, 체크인/체크아웃, 확인 간격 입력
-3. **시작** 버튼 클릭 → 자동 모니터링 + 예약 진행
-4. 상태 뱃지로 진행 상황 확인 (`마지막 확인: 09:23 · 다음 확인: 09:25`)
-5. 예약 완료 시 자동 중지 + "예약완료" 뱃지
+2. 연수원 사이트 아이디/비밀번호로 로그인 (최초 로그인 시 연수원 사이트 인증 포함, 5~10초 소요)
+3. 연수원, 체크인/체크아웃, 확인 간격 선택
+4. **START** 버튼 클릭 → 자동 모니터링 + 예약 진행
+5. 상태 뱃지로 진행 상황 확인
+6. 예약 완료 시 자동 중지 + "예약완료" 뱃지
+7. 로그아웃 버튼으로 세션 종료
 
 ## 디자인
 
@@ -99,24 +103,28 @@ macOS/Windows에 Google Chrome이 설치돼 있으면 시스템 Chrome을 자동
 ```
 YeonsuBot-Web/
 ├── main.py           # FastAPI 진입점 (uvicorn)
-├── web_server.py     # FastAPI 앱 (AppState, /ws, lifespan)
+├── web_server.py     # FastAPI 앱 (SessionContext, SchedulerRegistry, /ws, lifespan)
+├── auth.py           # 세션 관리 (create/resolve/destroy, current_user dependency)
+├── log_context.py    # USER_CTX ContextVar (워커 스레드 → 로그 핸들러 사용자 식별)
 ├── checker.py        # Playwright 기반 예약 확인 + 자동 예약 (Chromium 폴백 포함)
 ├── scheduler.py      # 워커 스레드 + 주기적 모니터링
 ├── notifier.py       # 알림 모듈 (현재 미사용, 텔레그램 전환 예정)
-├── config.py         # settings.json 저장/불러오기 (SETTINGS_DIR 환경변수)
+├── config.py         # 사용자별 settings.json 저장/불러오기 (SETTINGS_DIR 환경변수)
+├── migrate.py        # 일회성 마이그레이션 (settings.json → users/<username>/)
 ├── facilities.py     # 10개 연수원 이름↔코드 매핑
 ├── templates/
-│   └── index.html    # 단일 패널 UI (Vanilla JS)
+│   └── index.html    # 멀티유저 UI (로그인 카드 + 메인 패널, Vanilla JS)
 ├── mockups/
 │   └── index.html    # 정적 디자인 목업 (참고용)
 ├── requirements.txt  # 의존성 목록
 ├── Dockerfile
 ├── docker-compose.yml
-├── plan.md           # 웹 전환 계획 + 디자인 토큰
-├── to-do.md          # 작업 체크리스트
-├── BUGFIX_LOG.md     # 운영 중 버그 수정 이력
 ├── DESIGN.md         # Apple 시스템 디자인 토큰
-└── data/             # settings.json (Docker 볼륨 마운트)
+├── BUGFIX_LOG.md     # 운영 중 버그 수정 이력
+└── data/
+    └── users/
+        └── <username>/
+            └── settings.json   # 사용자별 설정 (Docker 볼륨 마운트)
 ```
 
 ## 기술 스택
@@ -135,7 +143,8 @@ YeonsuBot-Web/
 
 ## 주의사항
 
-- 본인 1명 전용 설계입니다. 한 번에 한 세션만 돌아갑니다 (실행 중 `/api/start` 재호출 시 409 응답).
-- 단일 Chromium 인스턴스 기준 약 300~400MB RAM 사용. Beelink EQR6 사양으로 충분합니다.
-- `data/` 디렉토리가 Docker 볼륨으로 마운트되어 설정이 컨테이너 재시작 후에도 유지됩니다.
-- 웹 인증 기능이 없습니다 (URL 알면 접근 가능). 공용 환경에 띄울 계획이면 HTTPS/인증 레이어를 앞에 두세요.
+- 동시 로그인 및 봇 실행은 최대 3명으로 제한됩니다. 초과 시 503 안내가 표시됩니다.
+- 사용자 1명당 Chromium 인스턴스 약 300~400MB RAM 사용. 3명 동시 실행 시 최대 ~1.2GB.
+- 세션은 서버 메모리에만 저장됩니다. 컨테이너 재시작 시 모두 로그아웃되며, 재로그인하면 설정은 복원됩니다.
+- `data/users/` 디렉토리가 Docker 볼륨으로 마운트되어 사용자별 설정이 재시작 후에도 유지됩니다.
+- 기존 `data/settings.json`이 있다면 `python migrate.py`를 한 번 실행해 사용자별 경로로 이전하세요.

@@ -2,21 +2,24 @@
 
 ## 프로젝트 개요
 
-서울시 공무원 연수원(https://yeonsu.eseoul.go.kr/) 예약 가능 날짜를 주기적으로 모니터링하고, 빈방 발견 시 자동 예약하는 **웹 앱** (FastAPI + WebSocket). 본인 1명 전용, 단일 슬롯 구조. Beelink EQR6 미니 PC(Ubuntu)에 Docker로 배포, GitLab + Jenkins CI/CD.
+서울시 공무원 연수원(https://yeonsu.eseoul.go.kr/) 예약 가능 날짜를 주기적으로 모니터링하고, 빈방 발견 시 자동 예약하는 **웹 앱** (FastAPI + WebSocket). 최대 3명이 동시에 각자 계정으로 로그인해 독립적으로 봇을 운영할 수 있는 멀티유저 구조. Beelink EQR6 미니 PC(Ubuntu)에 Docker로 배포, GitLab + Jenkins CI/CD.
 
 이전 CustomTkinter 데스크톱 버전에서 웹으로 전환됨. 비즈니스 로직(`checker.py`, `scheduler.py`, `notifier.py`, `facilities.py`)은 GUI 의존성이 없어 그대로 재사용하고 GUI 레이어만 FastAPI + HTML로 교체.
 
 ## 아키텍처
 
 - **main.py**: FastAPI 진입점 — uvicorn으로 `web_server:app` 실행
-- **web_server.py**: FastAPI 앱. `AppState`(scheduler + ws_clients + log_buffer + current_status + last_check_at), `WebSocketLogHandler`(로깅 → WS 브로드캐스트, `loop.call_soon_threadsafe()`로 워커 스레드 안전), lifespan 컨텍스트(종료 시 `scheduler.stop()` + join). REST: `/api/status`, `/api/settings`, `/api/start` (409), `/api/stop`, `/api/slack/test`. WebSocket: `/ws` (연결 시 log_buffer 즉시 전송).
-- **templates/index.html**: 단일 패널 UI (Vanilla JS). 상태+액션 → 폼 → 로그 3단 계층. 시작/중지 토글 버튼. 자동 스크롤 pause, 토스트 알림, 3초 WS 재연결. DESIGN.md Apple 시스템 토큰 적용.
+- **web_server.py**: FastAPI 앱. `SessionContext`(사용자 1명분 scheduler + ws_clients + log_buffer + 상태)를 `SchedulerRegistry`가 username 키로 관리. `WebSocketLogHandler`는 `USER_CTX` ContextVar를 읽어 해당 사용자의 log_buffer로만 라우팅. lifespan 컨텍스트(종료 시 전체 컨텍스트 stop + join). REST: `/api/auth/*`, `/api/status`, `/api/settings`, `/api/start` (409), `/api/stop`, `/api/logs/clear`. WebSocket: `/ws?session_id=<token>` (연결 시 사용자 본인 log_buffer만 즉시 전송).
+- **auth.py**: 메모리 세션 관리. `create_session` / `resolve_session` / `destroy_session` (7일 TTL, 만료 자동 정리). `current_user` FastAPI dependency — `X-YeonsuBot-Session` 헤더 우선, Cookie fallback. 동시 로그인 한도 `MAX_CONCURRENT_USERS=3` 검사.
+- **log_context.py**: `USER_CTX = ContextVar("yeonsubot_user")` — 워커 스레드별 username을 로그 핸들러에 전달하는 컨텍스트 변수.
+- **templates/index.html**: 멀티유저 UI (Vanilla JS). 로그인 카드 → 메인 패널(상태+액션 → 폼 → 로그) 전환. `apiFetch()` 헬퍼로 모든 API 호출에 `X-YeonsuBot-Session` 헤더 자동 첨부. `sessionStorage`로 창별 세션 격리 (같은 브라우저 프로필의 여러 창에서 서로 다른 계정 동시 사용 가능). WS 연결은 `/ws?session_id=<token>`.
 - **mockups/index.html**: 정적 디자인 목업 (참고용, 실제 앱 아님).
 - **checker.py**: `BrowserSession` 클래스. Playwright로 로그인 → 연수원 선택 → 달력 조회 → 자동 예약 (7단계 플로우: 연수원 선택 → 달력 체크인/체크아웃 날짜 클릭 → hidden 필드 동기화 → 선택일로 예약하기 → 기관배정 팝업 닫기 → 객실선택하기 → 예약하기 → 예약안내 팝업 동의). Playwright 네이티브 클릭(trusted event) 사용. 체크아웃은 1박/다박 무관하게 항상 명시적 클릭하며, 다음날 예약 불가 시 사이트 자동 설정 허용. `check_in_day_hidden` → `check_in_day` 필드 동기화 필수. `stop_event`를 받아 주요 단계마다 중지 체크. **Linux/Docker 환경에서는 Playwright 내장 Chromium을 사용**하며 `--no-sandbox --disable-dev-shm-usage` 옵션 적용. ARM64에서는 Google Chrome 미지원으로 Chromium 사용 필수.
-- **scheduler.py**: `MonitorScheduler` 클래스. 워커 스레드에서 `BrowserSession`을 소유하고 주기적 체크 + 예약 시도. `stop_event`를 `book()`에 전달하여 즉시 중지 대응. 변경 없음.
-- **notifier.py**: Slack Incoming Webhook 알림 (빈방 발견, 예약 성공/실패, 테스트). 변경 없음.
-- **config.py**: settings.json 저장/불러오기, 비밀번호 Base64 인코딩. **`SETTINGS_DIR` 환경변수**로 Docker 볼륨 경로 주입 가능.
-- **facilities.py**: 10개 연수원 이름↔코드 매핑. 변경 없음.
+- **scheduler.py**: `MonitorScheduler` 클래스. 워커 스레드에서 `BrowserSession`을 소유하고 주기적 체크 + 예약 시도. `stop_event`를 `book()`에 전달하여 즉시 중지 대응. `_worker_loop` 진입/종료 시 `USER_CTX` 설정/리셋.
+- **config.py**: 사용자별 설정 저장/불러오기. 경로: `data/users/<username>/settings.json`. `load(username)` / `save(username, settings)`. path traversal 정규식 방어. 비밀번호 Base64 인코딩. **`SETTINGS_DIR` 환경변수**로 Docker 볼륨 경로 주입 가능.
+- **migrate.py**: 일회성 마이그레이션 스크립트. 기존 단일 `data/settings.json` → `data/users/<username>/settings.json`으로 이전. 원본은 `.migrated.<timestamp>`로 rename.
+- **notifier.py**: 알림 모듈 (현재 미사용, 텔레그램 전환 예정).
+- **facilities.py**: 10개 연수원 이름↔코드 매핑.
 - **plan.md / to-do.md / DESIGN.md**: 웹 전환 계획, 작업 목록, Apple 디자인 시스템.
 
 ## 실행 방법

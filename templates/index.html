@@ -57,15 +57,30 @@
     backdrop-filter: saturate(180%) blur(20px);
     -webkit-backdrop-filter: saturate(180%) blur(20px);
     color: var(--text-on-dark);
-    display: flex; align-items: center;
+    display: flex; align-items: center; justify-content: space-between;
     padding: 0 var(--space-5);
   }
   .nav-title {
     font-size: 17px; font-weight: 600;
     line-height: 1.24; letter-spacing: -0.374px;
   }
+  .nav-actions {
+    display: flex; align-items: center; gap: var(--space-3);
+    font-size: 14px; line-height: 1.29; letter-spacing: -0.224px;
+    color: var(--text-on-dark-dim);
+  }
+  .nav-logout {
+    background: transparent;
+    color: var(--text-on-dark);
+    border: 1px solid rgba(255, 255, 255, 0.32);
+    border-radius: var(--radius-button);
+    padding: 5px 10px;
+    min-height: 30px;
+    font-size: 13px;
+  }
 
   /* Layout */
+  [hidden] { display: none !important; }
   .shell {
     max-width: 1200px; margin: 0 auto;
     padding: var(--space-6) var(--space-5);
@@ -89,6 +104,27 @@
     min-height: 480px;
     overflow: hidden;
     position: relative;
+  }
+  .login-shell {
+    max-width: 420px;
+    min-height: calc(100vh - 48px);
+    margin: 0 auto;
+    padding: var(--space-6) var(--space-5);
+    display: flex;
+    align-items: center;
+  }
+  .login-card {
+    width: 100%;
+    background: var(--panel);
+    border-radius: var(--radius-input);
+    padding: var(--space-6);
+  }
+  .login-title {
+    margin: 0 0 var(--space-5);
+    font-size: 21px;
+    font-weight: 600;
+    line-height: 1.19;
+    letter-spacing: -0.374px;
   }
 
   /* Status block */
@@ -302,6 +338,11 @@
     .shell { grid-template-columns: 320px 1fr; }
   }
   @media (max-width: 640px) {
+    .nav { padding: 0 var(--space-4); }
+    .nav-actions { gap: var(--space-2); }
+    .nav-user { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .login-shell { padding: var(--space-4); align-items: stretch; min-height: auto; }
+    .login-card { padding: var(--space-4); }
     .shell {
       grid-template-columns: 1fr;
       padding: var(--space-4);
@@ -322,9 +363,35 @@
 
 <nav class="nav">
   <div class="nav-title">YeonsuBot</div>
+  <div class="nav-actions" id="nav-actions" hidden>
+    <span class="nav-user" id="nav-user"></span>
+    <button class="nav-logout" id="btn-logout" type="button">로그아웃</button>
+  </div>
 </nav>
 
-<main class="shell">
+<main class="login-shell" id="login-view" hidden>
+  <section class="login-card" aria-label="로그인">
+    <h1 class="login-title">로그인</h1>
+    <form class="form" id="login-form" onsubmit="return false">
+      <div class="field">
+        <label for="login-username">아이디</label>
+        <input id="login-username" type="text" autocomplete="username" placeholder="서울시 공무원 아이디">
+      </div>
+      <div class="field">
+        <label for="login-password">비밀번호</label>
+        <div class="password-wrap">
+          <input id="login-password" type="password" autocomplete="current-password" placeholder="••••••••">
+          <button type="button" class="password-toggle" id="login-password-toggle"
+                  aria-label="로그인 비밀번호 표시 전환" aria-pressed="false">표시</button>
+        </div>
+        <div class="form-error" id="login-error" hidden></div>
+      </div>
+      <button class="btn-primary" id="btn-login" type="button">로그인</button>
+    </form>
+  </section>
+</main>
+
+<main class="shell" id="app-shell" hidden>
   <!-- Settings panel -->
   <section class="panel" aria-label="설정 패널">
     <!-- Status + action -->
@@ -341,18 +408,6 @@
 
     <!-- Form -->
     <form class="form" id="form" onsubmit="return false">
-      <div class="field">
-        <label for="username">아이디</label>
-        <input id="username" type="text" autocomplete="username" placeholder="서울시 공무원 아이디">
-      </div>
-      <div class="field">
-        <label for="password">비밀번호</label>
-        <div class="password-wrap">
-          <input id="password" type="password" autocomplete="current-password" placeholder="••••••••">
-          <button type="button" class="password-toggle" id="password-toggle"
-                  aria-label="비밀번호 표시 전환" aria-pressed="false">표시</button>
-        </div>
-      </div>
       <div class="field">
         <label for="facility">연수원</label>
         <select id="facility"></select>
@@ -401,6 +456,17 @@
 
   const $ = (id) => document.getElementById(id);
   const els = {
+    loginView: $('login-view'),
+    appShell: $('app-shell'),
+    navActions: $('nav-actions'),
+    navUser: $('nav-user'),
+    btnLogout: $('btn-logout'),
+    loginForm: $('login-form'),
+    loginUsername: $('login-username'),
+    loginPassword: $('login-password'),
+    loginPasswordToggle: $('login-password-toggle'),
+    loginError: $('login-error'),
+    btnLogin: $('btn-login'),
     statusDot: $('status-dot'),
     statusLabel: $('status-label'),
     statusBadge: $('status-badge'),
@@ -409,9 +475,6 @@
     btnStop: $('btn-stop'),
     btnClearLogs: $('btn-clear-logs'),
     form: $('form'),
-    username: $('username'),
-    password: $('password'),
-    passwordToggle: $('password-toggle'),
     facility: $('facility'),
     checkin: $('checkin'),
     checkout: $('checkout'),
@@ -430,10 +493,26 @@
     pendingLogCount: 0,
     ws: null,
     wsRetryTimer: null,
+    wsManualClose: false,
     lastResult: null,
+    currentUser: null,
   };
 
   // ── Helpers ─────────────────────────────────────────────
+
+  // 모든 API 호출에 X-YeonsuBot-Session 헤더 자동 첨부. 401 시 해당 창 세션만 삭제 후 로그인 화면.
+  async function apiFetch(url, options = {}) {
+    const sessionId = sessionStorage.getItem('yeonsubot_session');
+    const headers = Object.assign({}, options.headers || {});
+    if (sessionId) headers['X-YeonsuBot-Session'] = sessionId;
+    const r = await fetch(url, Object.assign({}, options, { headers }));
+    if (r.status === 401) {
+      sessionStorage.removeItem('yeonsubot_session');
+      showLogin();
+    }
+    return r;
+  }
+
   function toast(message, kind) {
     const el = document.createElement('div');
     el.className = 'toast ' + (kind || 'success');
@@ -453,6 +532,110 @@
   function secondsToMinutes(sec) {
     const n = parseInt(sec, 10);
     return Number.isFinite(n) && n > 0 ? Math.max(1, Math.round(n / 60)) : 2;
+  }
+  function friendlyLimitMessage(detail) {
+    return detail || '동시에 사용할 수 있는 인원이 가득 찼습니다. 잠시 후 다시 시도해 주세요.';
+  }
+  async function readErrorMessage(response, fallback) {
+    const err = await response.json().catch(() => ({ detail: fallback }));
+    if (response.status === 503) return friendlyLimitMessage(err.detail);
+    return err.detail || fallback;
+  }
+
+  // ── Auth views ──────────────────────────────────────────
+  function setLoginError(message) {
+    els.loginError.textContent = message || '';
+    els.loginError.hidden = !message;
+  }
+
+  function showLogin() {
+    state.currentUser = null;
+    document.body.classList.remove('running');
+    closeWS();
+    els.navActions.hidden = true;
+    els.appShell.hidden = true;
+    els.loginView.hidden = false;
+    setLoginError('');
+    els.loginPassword.value = '';
+    els.loginUsername.focus();
+  }
+
+  async function showApp(username) {
+    state.currentUser = username;
+    els.navUser.textContent = '안녕하세요, ' + username + '님';
+    els.navActions.hidden = false;
+    els.loginView.hidden = true;
+    els.appShell.hidden = false;
+    clearLogUI();
+    await loadSettings();
+    await refreshStatus();
+    connectWS();
+  }
+
+  async function checkAuth() {
+    if (!sessionStorage.getItem('yeonsubot_session')) {
+      showLogin();
+      return;
+    }
+    try {
+      const r = await apiFetch('/api/auth/me');
+      if (r.ok) {
+        const data = await r.json();
+        await showApp(data.username);
+      } else {
+        showLogin();
+      }
+    } catch (e) {
+      console.warn('auth check failed', e);
+      showLogin();
+    }
+  }
+
+  async function login() {
+    const username = els.loginUsername.value.trim();
+    const password = els.loginPassword.value;
+    setLoginError('');
+    if (!username || !password) {
+      setLoginError('아이디와 비밀번호를 입력하세요.');
+      return;
+    }
+
+    els.btnLogin.disabled = true;
+    const prevText = els.btnLogin.textContent;
+    els.btnLogin.textContent = '로그인 중...';
+    try {
+      const r = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      });
+      if (!r.ok) {
+        setLoginError(await readErrorMessage(r, '로그인에 실패했습니다.'));
+        return;
+      }
+      const data = await r.json();
+      if (data.session_id) {
+        sessionStorage.setItem('yeonsubot_session', data.session_id);
+      }
+      await showApp(data.username);
+    } catch (e) {
+      setLoginError('로그인에 실패했습니다: ' + e.message);
+    } finally {
+      els.btnLogin.disabled = false;
+      els.btnLogin.textContent = prevText;
+    }
+  }
+
+  async function logout() {
+    closeWS();
+    try {
+      await apiFetch('/api/auth/logout', { method: 'POST' });
+    } catch (e) {
+      console.warn('logout failed', e);
+    } finally {
+      sessionStorage.removeItem('yeonsubot_session');
+      showLogin();
+    }
   }
 
   // ── Status rendering ────────────────────────────────────
@@ -602,9 +785,24 @@
   });
 
   // ── WebSocket ───────────────────────────────────────────
+  function closeWS() {
+    state.wsManualClose = true;
+    clearTimeout(state.wsRetryTimer);
+    state.wsRetryTimer = null;
+    if (state.ws) {
+      try { state.ws.close(); } catch {}
+      state.ws = null;
+    }
+  }
+
   function connectWS() {
+    if (!state.currentUser) return;
+    const sessionId = sessionStorage.getItem('yeonsubot_session');
+    if (!sessionId) { showLogin(); return; }
+    if (state.ws && (state.ws.readyState === WebSocket.OPEN || state.ws.readyState === WebSocket.CONNECTING)) return;
+    state.wsManualClose = false;
     const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const url = proto + '//' + location.host + '/ws';
+    const url = proto + '//' + location.host + '/ws?session_id=' + encodeURIComponent(sessionId);
     const ws = new WebSocket(url);
     state.ws = ws;
 
@@ -636,10 +834,23 @@
       }
     });
 
-    ws.addEventListener('close', () => {
+    ws.addEventListener('close', (ev) => {
       state.ws = null;
+      if (state.wsManualClose) {
+        state.wsManualClose = false;
+        return;
+      }
       els.logBanner.classList.add('show');
       clearTimeout(state.wsRetryTimer);
+      if (ev.code === 4401) {
+        console.warn('WebSocket closed: authentication required (4401).');
+        sessionStorage.removeItem('yeonsubot_session');
+        els.logBanner.textContent = '로그인이 필요합니다.';
+        showLogin();
+        return;
+      }
+      console.warn('WebSocket closed', { code: ev.code, reason: ev.reason || '', wasClean: ev.wasClean });
+      els.logBanner.textContent = '연결 끊김. 3초 후 재시도...';
       state.wsRetryTimer = setTimeout(connectWS, 3000);
     });
 
@@ -651,7 +862,15 @@
   // ── API ─────────────────────────────────────────────────
   async function loadSettings() {
     try {
-      const r = await fetch('/api/settings');
+      const r = await apiFetch('/api/settings');
+      if (r.status === 401) {
+        showLogin();
+        return;
+      }
+      if (r.status === 503) {
+        toast(friendlyLimitMessage(), 'error');
+        return;
+      }
       if (!r.ok) return;
       const s = await r.json();
       // facility 옵션 채우기
@@ -661,8 +880,6 @@
         opt.value = name; opt.textContent = name;
         els.facility.appendChild(opt);
       });
-      if (s.username) els.username.value = s.username;
-      if (s.password) els.password.value = s.password; // 마스크 값
       if (s.facility) els.facility.value = s.facility;
 
       // 체크인/체크아웃: 저장된 값이 오늘 이후면 복원, 과거면 무시하고 오늘/내일
@@ -686,7 +903,15 @@
 
   async function refreshStatus() {
     try {
-      const r = await fetch('/api/status');
+      const r = await apiFetch('/api/status');
+      if (r.status === 401) {
+        showLogin();
+        return;
+      }
+      if (r.status === 503) {
+        toast(friendlyLimitMessage(), 'error');
+        return;
+      }
       if (!r.ok) return;
       const s = await r.json();
       renderStatus(s);
@@ -694,16 +919,20 @@
   }
 
   async function startBot() {
+    if (!state.currentUser) {
+      showLogin();
+      return;
+    }
     els.btnStart.disabled = true;
     const prevText = els.btnStart.textContent;
     els.btnStart.textContent = '시작 중...';
     try {
-      const r = await fetch('/api/start', {
+      const r = await apiFetch('/api/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          username: els.username.value.trim(),
-          password: els.password.value,
+          username: state.currentUser,
+          password: '',
           facility: els.facility.value,
           checkin: els.checkin.value,
           checkout: els.checkout.value,
@@ -715,8 +944,7 @@
         return;
       }
       if (!r.ok) {
-        const err = await r.json().catch(() => ({ detail: '시작 실패' }));
-        toast(err.detail || '시작 실패', 'error');
+        toast(await readErrorMessage(r, '시작 실패'), 'error');
         return;
       }
       const s = await r.json();
@@ -733,7 +961,15 @@
   async function stopBot() {
     els.btnStop.disabled = true;
     try {
-      const r = await fetch('/api/stop', { method: 'POST' });
+      const r = await apiFetch('/api/stop', { method: 'POST' });
+      if (r.status === 401) {
+        showLogin();
+        return;
+      }
+      if (r.status === 503) {
+        toast(friendlyLimitMessage(), 'error');
+        return;
+      }
       if (r.ok) {
         const s = await r.json();
         renderStatus(s);
@@ -747,7 +983,15 @@
   async function clearLogs() {
     els.btnClearLogs.disabled = true;
     try {
-      const r = await fetch('/api/logs/clear', { method: 'POST' });
+      const r = await apiFetch('/api/logs/clear', { method: 'POST' });
+      if (r.status === 401) {
+        showLogin();
+        return;
+      }
+      if (r.status === 503) {
+        toast(friendlyLimitMessage(), 'error');
+        return;
+      }
       if (r.ok) {
         // 서버가 WS로 'clear' 를 브로드캐스트하지만, 로컬 즉시 반영도 안전하게
         clearLogUI();
@@ -764,18 +1008,21 @@
 
 
   // ── Event wiring ─────────────────────────────────────────
+  els.btnLogin.addEventListener('click', login);
+  els.loginForm.addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    login();
+  });
+  els.loginPasswordToggle.addEventListener('click', () => {
+    const isPwd = els.loginPassword.type === 'password';
+    els.loginPassword.type = isPwd ? 'text' : 'password';
+    els.loginPasswordToggle.textContent = isPwd ? '숨김' : '표시';
+    els.loginPasswordToggle.setAttribute('aria-pressed', String(isPwd));
+  });
+  els.btnLogout.addEventListener('click', logout);
   els.btnStart.addEventListener('click', startBot);
   els.btnStop.addEventListener('click', stopBot);
   els.btnClearLogs.addEventListener('click', clearLogs);
-
-  els.passwordToggle.addEventListener('click', () => {
-    // 서버에서 받은 마스크 값(********)이면 토글 무시
-    if (els.password.value === '********') return;
-    const isPwd = els.password.type === 'password';
-    els.password.type = isPwd ? 'text' : 'password';
-    els.passwordToggle.textContent = isPwd ? '숨김' : '표시';
-    els.passwordToggle.setAttribute('aria-pressed', String(isPwd));
-  });
 
   // 체크인 변경 시 체크아웃 항상 +1일로 덮어쓰기
   els.checkin.addEventListener('change', () => {
@@ -786,8 +1033,7 @@
   });
 
   // 초기화
-  loadSettings().then(refreshStatus);
-  connectWS();
+  checkAuth();
 })();
 </script>
 

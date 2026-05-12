@@ -6,6 +6,7 @@ from enum import Enum, auto
 
 from checker import BrowserSession, BookingError, LoginError, BrowserNotFoundError
 from facilities import get_facility_name
+from log_context import USER_CTX
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +49,7 @@ class MonitorScheduler:
     return self._running
 
   def start(self, interval_seconds: int, yeonsu_gbn: str, target_dates: list[str],
-            username: str, password: str):
+            username: str, password: str, log_username: str | None = None):
     """모니터링 시작."""
     if self._running:
       logger.warning("스케줄러가 이미 실행 중입니다.")
@@ -68,6 +69,7 @@ class MonitorScheduler:
     self._target_dates = target_dates
     self._username = username
     self._password = password
+    self._log_username = log_username or username
 
     # 새 세대의 중지 이벤트 생성
     self._stop_event = threading.Event()
@@ -90,6 +92,7 @@ class MonitorScheduler:
 
   def _worker_loop(self, stop_event: threading.Event):
     """워커 스레드 메인 루프. Playwright 세션을 소유한다."""
+    token = USER_CTX.set(self._log_username)
     session = BrowserSession()
     try:
       self._notify_status("로그인 중...")
@@ -123,6 +126,7 @@ class MonitorScheduler:
         self.on_error(exc)
     finally:
       session.stop()
+      USER_CTX.reset(token)
       # 현재 세대의 이벤트인 경우에만 _running 해제
       # (새 start()가 이미 호출되었으면 건드리지 않음)
       if self._stop_event is stop_event:

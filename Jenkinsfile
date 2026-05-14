@@ -25,8 +25,8 @@ pipeline {
 
         stage('빌드') {
             steps {
-                // --pull: 베이스 이미지 최신화, 레이어 캐시는 유지
-                sh 'docker compose build --pull'
+                // --pull: 베이스 이미지 최신화, --no-cache: 코드 변경 미반영 캐시 문제 방지
+                sh 'docker compose build --pull --no-cache'
             }
         }
 

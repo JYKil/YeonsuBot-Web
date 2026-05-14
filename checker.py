@@ -940,9 +940,9 @@ if __name__ == "__main__":
         print("--username / --password 또는 BOT_USERNAME / BOT_PASSWORD 환경변수 필요")
         sys.exit(1)
 
-    session = BrowserSession(args.username, args.password)
+    session = BrowserSession()
     try:
-        session.start()
+        session.start(args.username, args.password)
         result = session.book(code, [args.date], dry_run=True)
         print("dry-run 결과:", "성공" if result else "실패")
         sys.exit(0 if result else 1)

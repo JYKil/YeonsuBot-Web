@@ -586,13 +586,26 @@ class BrowserSession:
             logger.info("[예약] 날짜 필드 동기화: 체크인=%s, 체크아웃=%s",
                         actual['ci'], actual['co'])
 
-            # 3단계: "선택일로 예약하기" — 메인 폼 search()가 POST로 객실 목록 이동
+            # 3단계: "선택일로 예약하기" 버튼 클릭 → POST /onlineRsv/list 이동
+            # search() 직접 호출 시 사이트 오류 페이지 반환 — 실제 버튼 클릭으로 이벤트 체인 실행
             logger.info("[예약] 선택일로 예약하기 클릭...")
+            btn = page.locator(
+                'button:has-text("선택일로 예약하기"), '
+                'a:has-text("선택일로 예약하기"), '
+                'input[type="button"][value*="예약하기"], '
+                '[onclick*="search()"]'
+            ).first
+            btn_count = btn.count()
+            logger.info("[예약] 예약하기 버튼 감지: %d개", btn_count)
             try:
                 with page.expect_navigation(wait_until="domcontentloaded", timeout=15000):
-                    page.evaluate("search()")
+                    if btn_count > 0:
+                        btn.click()
+                    else:
+                        logger.warning("[예약] 예약하기 버튼을 찾지 못함, search() 폴백 호출")
+                        page.evaluate("search()")
             except PlaywrightTimeout:
-                logger.warning("[예약] search() POST 이동 대기 타임아웃")
+                logger.warning("[예약] 예약하기 버튼 클릭 후 이동 대기 타임아웃 (현재 URL: %s)", page.url)
 
             try:
                 page.wait_for_load_state('networkidle', timeout=10000)

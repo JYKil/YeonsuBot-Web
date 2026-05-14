@@ -57,7 +57,9 @@ pipeline {
         failure {
             updateGitlabCommitStatus name: 'jenkins', state: 'failed'
             // 실패 시 컨테이너 로그 출력 (Jenkins 빌드 로그에서 확인)
-            sh 'docker compose logs --tail=100 || true'
+            withCredentials([string(credentialsId: 'yeonsubot-admin-password', variable: 'ADMIN_PASSWORD')]) {
+                sh 'docker compose logs --tail=100 || true'
+            }
         }
         aborted {
             updateGitlabCommitStatus name: 'jenkins', state: 'canceled'

@@ -15,6 +15,6 @@ services:
       - TZ=Asia/Seoul
       # ADMIN_PASSWORD는 Jenkins Credentials 또는 쉘 환경변수에서 주입.
       # 값이 없으면 docker compose up이 즉시 실패함.
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD:?ADMIN_PASSWORD 환경변수가 설정되지 않았습니다}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
     # 단일 Chromium 인스턴스 — 기본 64MB 로는 부족
     shm_size: "256mb"

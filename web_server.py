@@ -272,9 +272,19 @@ async def admin_page() -> HTMLResponse:
 
 
 @app.get("/api/status")
-async def api_status(user: str = Depends(auth.current_user)) -> JSONResponse:
+async def api_status(user: str | None = Depends(auth.current_user_optional)) -> JSONResponse:
+    # Jenkins/Docker 헬스체크는 인증 없이 호출하므로 200으로 응답한다.
+    if not user:
+        return JSONResponse({
+            "ok": True,
+            "server_time": datetime.now(_KST).strftime("%Y-%m-%d %H:%M:%S"),
+            "active_contexts": len(list(registry.contexts())),
+        })
+
     ctx = registry.get_or_create(user)
-    return JSONResponse(_status_payload(ctx))
+    payload = _status_payload(ctx)
+    payload["ok"] = True
+    return JSONResponse(payload)
 
 
 @app.get("/api/admin/sessions")

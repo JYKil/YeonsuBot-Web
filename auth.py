@@ -133,3 +133,12 @@ def current_user(
     if not username:
         raise HTTPException(status_code=401, detail="인증이 필요합니다.")
     return username
+
+
+def current_user_optional(
+    request: Request,
+    cookie_session_id: str | None = Cookie(None, alias=SESSION_COOKIE_NAME),
+) -> str | None:
+    """인증이 없어도 None을 반환하는 current_user 변형 (헬스체크/공개 엔드포인트용)."""
+    session_id = request.headers.get("X-YeonsuBot-Session") or cookie_session_id
+    return resolve_session(session_id)

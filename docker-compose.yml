@@ -10,7 +10,7 @@ services:
       - ./data:/data
     env_file:
       - path: .env
-        required: false
+        required: true
     environment:
       - SETTINGS_DIR=/data
       - HOST=0.0.0.0

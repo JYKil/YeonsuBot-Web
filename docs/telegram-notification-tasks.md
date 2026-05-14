@@ -77,48 +77,14 @@ YeonsuBot-Web/notifier.py 파일을 Slack에서 텔레그램으로 전면 교체
 
 ---
 
-### English Prompt
+## 태스크 2 — scheduler.py/web_server.py: 예약 성공 + 워커 오류 + Heartbeat 알림
 
-```
-Replace YeonsuBot-Web/notifier.py entirely — switch from Slack to Telegram.
-
-Current state:
-- Slack Incoming Webhook code (hardcoded SLACK_WEBHOOK_URL, currently unused)
-
-Implementation rules:
-1. Remove all Slack code
-2. Use Telegram Bot API: POST https://api.telegram.org/bot{token}/sendMessage
-3. Read config from env: os.getenv("TELEGRAM_BOT_TOKEN"), os.getenv("TELEGRAM_CHAT_ID")
-4. If token/chat ID not set, log a warning and return False silently (no crash)
-5. Use the `requests` library (already installed)
-
-Implement these public functions:
-- notify_booking_success(username: str, facility: str, checkin: str, checkout: str) -> bool
-  Example message: "🎉 Booking confirmed!\nUser: {username}\nFacility: {facility}\nDates: {checkin}~{checkout}"
-- notify_worker_error(username: str, error_msg: str) -> bool
-  Example message: "⚠️ Monitoring stopped\nUser: {username}\nReason: {error_msg}"
-- notify_session_expired(username: str) -> bool
-  Example message: "⏰ Session expired — monitoring stopped\nUser: {username}"
-- notify_heartbeat(username: str, elapsed_h: int, cycle: int) -> bool
-  Example message: "✅ Still monitoring\nUser: {username}\nElapsed: {elapsed_h}h ({cycle} cycles)"
-- notify_test() -> bool
-  Example message: "✅ Telegram notification test — connection OK."
-
-Internal helper:
-- _send(text: str) -> bool: reads env vars, POSTs to Bot API, logs on failure and returns False
-
-All timestamps should be KST (UTC+9). Indentation: 2 spaces.
-```
-
----
-
-## 태스크 2 — scheduler.py: 예약 성공 + 워커 오류 + Heartbeat 알림
-
-**대상 파일:** `scheduler.py`
+**대상 파일:** `scheduler.py`, `web_server.py`
 **선행 조건:** 태스크 1 완료 후 진행
 
 **현재 상태:**
 - `_worker_loop()` (라인 93~133): 예외 발생 시 `on_error` 콜백만 호출
+- `web_server.py`의 `SessionContext._on_error()`는 워커 오류를 WebSocket으로만 전달
 - `_do_check_and_book()` (라인 135~207): 예약 성공 시 `라인 189~195`에서 로그·콜백만 호출
 - `MonitorScheduler.__init__()` (라인 33~45): heartbeat 관련 상태 없음
 - `_cycle_count` 이미 존재 (라인 38)
@@ -128,16 +94,18 @@ All timestamps should be KST (UTC+9). Indentation: 2 spaces.
 ### 2-A. 예약 성공 알림
 `_do_check_and_book()` 내 `라인 189~195` (예약 성공 분기) 직후:
 ```python
-from notifier import notify_booking_success
 notify_booking_success(self._log_username, self._yeonsu_gbn, ...)
 ```
 `checkin`, `checkout`은 `self._target_dates`의 첫·마지막 날짜로 구성.
 
 ### 2-B. 워커 오류 알림
-`_worker_loop()` 내 3개 except 블록 (라인 113~126) 각각에 추가:
+`scheduler.py`의 `_worker_loop()`에는 이미 `on_error` 콜백 호출이 있으므로 텔레그램 호출을 직접 추가하지 않는다.
+대신 `web_server.py`의 `SessionContext._on_error()`에서 WebSocket 에러 브로드캐스트와 함께 텔레그램 알림을 보낸다.
+
 ```python
-from notifier import notify_worker_error
-notify_worker_error(self._log_username, str(exc))
+def _on_error(self, error: Exception) -> None:
+    notifier.notify_worker_error(self.username, str(error))
+    self._broadcast({"type": "error", "message": str(error)})
 ```
 
 ### 2-C. 3시간 Heartbeat
@@ -159,13 +127,13 @@ notify_worker_error(self._log_username, str(exc))
 
 ```
 YeonsuBot-Web/scheduler.py에 텔레그램 알림 호출을 추가해줘.
+그리고 YeonsuBot-Web/web_server.py의 워커 에러 콜백에 텔레그램 알림 호출을 추가해줘.
 notifier.py는 이미 구현되어 있음 (notify_booking_success, notify_worker_error, notify_heartbeat 함수 존재).
 
 추가할 내용 3가지:
 
 [1] 예약 성공 알림 — _do_check_and_book() 메서드, 라인 189~195 부근
   success = True 분기 직후 (stop_event.set() 전)에 아래 추가:
-  from notifier import notify_booking_success
   notify_booking_success(
       self._log_username,
       self._yeonsu_gbn,
@@ -173,17 +141,21 @@ notifier.py는 이미 구현되어 있음 (notify_booking_success, notify_worker
       self._target_dates[-1],          # checkout
   )
 
-[2] 워커 오류 알림 — _worker_loop() except 블록 3개 (라인 113~126)
-  LoginError, BrowserNotFoundError, Exception 블록 각각에:
-  from notifier import notify_worker_error
-  notify_worker_error(self._log_username, str(exc))
-  (on_error 콜백 호출 직후에 추가)
+[2] 워커 오류 알림 — web_server.py의 SessionContext._on_error()
+  scheduler.py의 _worker_loop() except 블록에는 이미 on_error 콜백 호출이 있으므로 직접 텔레그램 호출을 추가하지 말 것.
+  web_server.py의 SessionContext._on_error()에 아래 호출만 추가:
+
+  notifier.notify_worker_error(self.username, str(error))
+
+  최종 형태:
+      def _on_error(self, error: Exception) -> None:
+          notifier.notify_worker_error(self.username, str(error))
+          self._broadcast({"type": "error", "message": str(error)})
 
 [3] 3시간 Heartbeat — __init__ + _worker_loop + _do_check_and_book
   - __init__ (라인 33~45): self._last_heartbeat_at: datetime | None = None 추가
   - _worker_loop, 로그인 성공 직후 (라인 100 이후): self._last_heartbeat_at = datetime.now() 초기화
   - _do_check_and_book 진입부 (라인 140 cycle_count 증가 이후):
-    from notifier import notify_heartbeat
     if self._last_heartbeat_at is not None:
         elapsed = (datetime.now() - self._last_heartbeat_at).total_seconds() / 3600
         if elapsed >= 3:
@@ -194,46 +166,7 @@ notifier.py는 이미 구현되어 있음 (notify_booking_success, notify_worker
 - import는 파일 상단에 몰아서 추가 (함수 내부 inline import 사용 금지)
 - datetime import가 없으면 추가
 - 코드 스타일 유지: 2칸 들여쓰기
-```
-
----
-
-### English Prompt
-
-```
-Add Telegram notification calls to YeonsuBot-Web/scheduler.py.
-notifier.py is already implemented and exposes: notify_booking_success, notify_worker_error, notify_heartbeat.
-
-Three changes to make:
-
-[1] Booking success — inside _do_check_and_book(), around lines 189–195
-  After the `success = True` branch, before stop_event.set():
-  notify_booking_success(
-      self._log_username,
-      self._yeonsu_gbn,
-      self._target_dates[0],   # checkin
-      self._target_dates[-1],  # checkout
-  )
-
-[2] Worker error — inside _worker_loop(), the three except blocks (lines 113–126)
-  Add after each on_error callback call:
-  notify_worker_error(self._log_username, str(exc))
-  (cover LoginError, BrowserNotFoundError, and bare Exception)
-
-[3] 3-hour heartbeat — __init__ + _worker_loop + _do_check_and_book
-  - __init__ (lines 33–45): add  self._last_heartbeat_at: datetime | None = None
-  - _worker_loop, after login success (after line 100): self._last_heartbeat_at = datetime.now()
-  - _do_check_and_book entry point (after cycle_count increment, line ~140):
-    if self._last_heartbeat_at is not None:
-        elapsed = (datetime.now() - self._last_heartbeat_at).total_seconds() / 3600
-        if elapsed >= 3:
-            notify_heartbeat(self._log_username, int(elapsed), self._cycle_count)
-            self._last_heartbeat_at = datetime.now()
-
-Constraints:
-- Add all imports at the top of the file, not inline
-- Add `from datetime import datetime` if missing
-- Keep 2-space indentation throughout
+- scheduler.py의 except 블록 3개에 notify_worker_error를 반복해서 넣지 말 것
 ```
 
 ---
@@ -272,7 +205,6 @@ YeonsuBot-Web/auth.py의 resolve_session() 함수에 세션 만료 텔레그램 
 
 변경 후:
     if now - session.created_at > SESSION_TTL:
-        from notifier import notify_session_expired  # 또는 파일 상단 import
         notify_session_expired(session.username)
         destroy_session(session_id)
         return None
@@ -281,35 +213,6 @@ YeonsuBot-Web/auth.py의 resolve_session() 함수에 세션 만료 텔레그램 
 - import는 파일 상단에 추가하는 것 권장 (circular import 없음 — notifier.py는 requests/os/logging만 사용)
 - session.username으로 사용자명 접근 가능 (SessionInfo dataclass에 username 필드 있음)
 - 다른 코드 건드리지 말 것
-```
-
----
-
-### English Prompt
-
-```
-Add a Telegram notification for session TTL expiry in YeonsuBot-Web/auth.py.
-
-Target: resolve_session() function, around lines 66–72.
-
-Current code:
-    if now - session.created_at > SESSION_TTL:
-        destroy_session(session_id)
-        return None
-
-Change to:
-    if now - session.created_at > SESSION_TTL:
-        notify_session_expired(session.username)
-        destroy_session(session_id)
-        return None
-
-Add at top of file:
-    from notifier import notify_session_expired
-
-Notes:
-- No circular import risk: notifier.py only uses requests, os, logging
-- session.username is available (it's a field on the SessionInfo dataclass)
-- Touch only what's needed — no other changes
 ```
 
 ---
@@ -348,29 +251,12 @@ TELEGRAM_CHAT_ID=
 
 ---
 
-### English Prompt
-
-```
-Append a Telegram section to YeonsuBot-Web/.env.example.
-
-Add at the bottom:
-# Telegram notifications (leave blank to disable)
-# Bot Token: get from @BotFather
-# Chat ID: personal chat or group ID
-TELEGRAM_BOT_TOKEN=
-TELEGRAM_CHAT_ID=
-
-Do not modify existing content.
-```
-
----
-
 ## 진행 순서 요약
 
 ```
 태스크 4  ← 독립, 언제든 가능
 태스크 1  ← notifier.py 교체 (선행 필수)
     ↓
-태스크 2  ← scheduler.py (태스크 1 후)
+태스크 2  ← scheduler.py + web_server.py (태스크 1 후)
 태스크 3  ← auth.py (태스크 1 후)
 ```

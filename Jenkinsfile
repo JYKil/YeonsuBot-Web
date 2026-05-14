@@ -32,7 +32,10 @@ pipeline {
 
         stage('배포') {
             steps {
-                sh 'docker compose up -d --force-recreate --remove-orphans'
+                // Jenkins Credentials에 등록된 ADMIN_PASSWORD를 환경변수로 주입
+                withCredentials([string(credentialsId: 'yeonsubot-admin-password', variable: 'ADMIN_PASSWORD')]) {
+                    sh 'docker compose up -d --force-recreate --remove-orphans'
+                }
             }
         }
 

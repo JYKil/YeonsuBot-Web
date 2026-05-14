@@ -12,6 +12,7 @@
 - 실시간 로그 스트리밍 (WebSocket, 사용자별 격리)
 - 재접속/새 탭 열어도 최근 200줄 로그 복원
 - 사용자별 설정 자동 저장/복원 (`data/users/<username>/settings.json`)
+- Admin 현황판 (`/admin`)에서 로그인 세션과 실행 상태를 읽기 전용으로 확인
 - 세션 만료 시 자동 재로그인
 - 메모리 누수 방지를 위한 브라우저 주기적 재시작
 - 장시간 대기 UX: 마지막/다음 확인 시각 + 대상 표시
@@ -35,6 +36,15 @@
 5. 상태 뱃지로 진행 상황 확인
 6. 예약 완료 시 자동 중지 + "예약완료" 뱃지
 7. 로그아웃 버튼으로 세션 종료
+
+## Admin 현황판
+
+- 접속 경로: `http://<서버IP>:3000/admin`
+- 운영 서버 LAN: http://192.168.75.205:3000/admin
+- 외부: http://kilga-server.duckdns.org:3000/admin
+- 인증: `.env`의 `ADMIN_PASSWORD` 값을 입력
+- 표시 정보: 계정명, 세션 수, 최초 로그인, 마지막 활동, 실행 여부, 현재 상태, 마지막 체크, 연결 창 수
+- 표시하지 않는 정보: 비밀번호, 세션 토큰, 예약 대상 연수원/날짜, 로그 내용
 
 ## 디자인
 
@@ -69,6 +79,22 @@ Jenkins 파이프라인 (`Jenkinsfile`):
 
 배포 디렉토리: `/opt/yeonsubot` (settings.json이 이 경로 아래 영속)
 
+### 환경변수 설정
+
+운영 서버의 배포 디렉토리에서 `.env.example`을 복사해 `.env`를 만들고 admin 비밀번호를 설정합니다.
+
+```bash
+cd /opt/yeonsubot
+cp .env.example .env
+nano .env
+```
+
+```env
+ADMIN_PASSWORD=원하는관리자비밀번호
+```
+
+`docker-compose.yml`은 `.env`를 optional env file로 읽습니다. `.env`가 없으면 컨테이너는 뜨지만 admin API는 비활성화됩니다.
+
 ### Jenkins 초기 설정 (최초 1회)
 
 ```bash
@@ -86,13 +112,14 @@ sudo chown -R jenkins:jenkins /opt/yeonsubot
 ```bash
 docker compose up --build
 # http://localhost:3000 접속
+# admin: http://localhost:3000/admin
 ```
 
 ### 로컬 개발 (Docker 없이)
 
 ```bash
 uv sync                    # 최초 1회, pyproject.toml 기준 .venv 생성
-uv run python main.py      # FastAPI + uvicorn 기동
+ADMIN_PASSWORD=원하는관리자비밀번호 uv run python main.py
 # http://localhost:3000 접속
 ```
 
@@ -103,8 +130,8 @@ macOS/Windows에 Google Chrome이 설치돼 있으면 시스템 Chrome을 자동
 ```
 YeonsuBot-Web/
 ├── main.py           # FastAPI 진입점 (uvicorn)
-├── web_server.py     # FastAPI 앱 (SessionContext, SchedulerRegistry, /ws, lifespan)
-├── auth.py           # 세션 관리 (create/resolve/destroy, current_user dependency)
+├── web_server.py     # FastAPI 앱 (SessionContext, SchedulerRegistry, /ws, admin API, lifespan)
+├── auth.py           # 세션 관리 (create/resolve/destroy, current_user/current_admin dependency)
 ├── log_context.py    # USER_CTX ContextVar (워커 스레드 → 로그 핸들러 사용자 식별)
 ├── checker.py        # Playwright 기반 예약 확인 + 자동 예약 (Chromium 폴백 포함)
 ├── scheduler.py      # 워커 스레드 + 주기적 모니터링
@@ -113,7 +140,8 @@ YeonsuBot-Web/
 ├── migrate.py        # 일회성 마이그레이션 (settings.json → users/<username>/)
 ├── facilities.py     # 10개 연수원 이름↔코드 매핑
 ├── templates/
-│   └── index.html    # 멀티유저 UI (로그인 카드 + 메인 패널, Vanilla JS)
+│   ├── index.html    # 멀티유저 UI (로그인 카드 + 메인 패널, Vanilla JS)
+│   └── admin.html    # Admin 현황판 UI (읽기 전용, Vanilla JS)
 ├── mockups/
 │   └── index.html    # 정적 디자인 목업 (참고용)
 ├── requirements.txt  # 의존성 목록

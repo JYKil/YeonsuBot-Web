@@ -27,6 +27,7 @@ logger = logging.getLogger(__name__)
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 INDEX_HTML = TEMPLATES_DIR / "index.html"
+ADMIN_HTML = TEMPLATES_DIR / "admin.html"
 
 LOG_BUFFER_MAX = 200
 PASSWORD_MASK = "********"
@@ -248,6 +249,12 @@ def _status_payload(ctx: SessionContext) -> dict:
     }
 
 
+def _format_kst_datetime(value: datetime | None) -> str | None:
+    if value is None:
+        return None
+    return value.astimezone(_KST).strftime("%Y-%m-%d %H:%M:%S")
+
+
 # ── REST 엔드포인트 ──
 
 @app.get("/", response_class=HTMLResponse)
@@ -257,10 +264,46 @@ async def index() -> HTMLResponse:
     return HTMLResponse(INDEX_HTML.read_text(encoding="utf-8"))
 
 
+@app.get("/admin", response_class=HTMLResponse)
+async def admin_page() -> HTMLResponse:
+    if not ADMIN_HTML.exists():
+        return HTMLResponse("<h1>templates/admin.html 을 찾을 수 없습니다.</h1>", status_code=500)
+    return HTMLResponse(ADMIN_HTML.read_text(encoding="utf-8"))
+
+
 @app.get("/api/status")
 async def api_status(user: str = Depends(auth.current_user)) -> JSONResponse:
     ctx = registry.get_or_create(user)
     return JSONResponse(_status_payload(ctx))
+
+
+@app.get("/api/admin/sessions")
+async def api_admin_sessions(_: bool = Depends(auth.current_admin)) -> JSONResponse:
+    contexts = {ctx.username: ctx for ctx in registry.contexts()}
+    sessions_by_user = {
+        item["username"]: item
+        for item in auth.admin_session_snapshot()
+    }
+
+    usernames = set(sessions_by_user) | set(contexts)
+    rows: list[dict] = []
+    for username in usernames:
+        session = sessions_by_user.get(username)
+        ctx = contexts.get(username)
+        rows.append({
+            "username": username,
+            "session_count": session["session_count"] if session else 0,
+            "first_created_at": _format_kst_datetime(session["first_created_at"] if session else None),
+            "last_seen_at": _format_kst_datetime(session["last_seen_at"] if session else None),
+            "has_context": ctx is not None,
+            "running": ctx.scheduler.is_running if ctx else False,
+            "status": ctx.current_status if ctx else "중지",
+            "last_check_at": ctx.last_check_at if ctx else None,
+            "ws_client_count": len(ctx.ws_clients) if ctx else 0,
+        })
+
+    rows.sort(key=lambda item: item["last_seen_at"] or "", reverse=True)
+    return JSONResponse({"sessions": rows})
 
 
 @app.post("/api/auth/login")

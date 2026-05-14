@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import secrets
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -74,6 +75,52 @@ def resolve_session(session_id: str | None) -> str | None:
 
 def destroy_session(session_id: str) -> None:
     _sessions.pop(session_id, None)
+
+
+def admin_session_snapshot() -> list[dict]:
+    _purge_expired()
+
+    grouped: dict[str, dict] = {}
+    for session in _sessions.values():
+        item = grouped.get(session.username)
+        if item is None:
+            grouped[session.username] = {
+                "username": session.username,
+                "session_count": 1,
+                "first_created_at": session.created_at,
+                "last_seen_at": session.last_seen_at,
+            }
+            continue
+
+        item["session_count"] += 1
+        if session.created_at < item["first_created_at"]:
+            item["first_created_at"] = session.created_at
+        if session.last_seen_at > item["last_seen_at"]:
+            item["last_seen_at"] = session.last_seen_at
+
+    return sorted(
+        grouped.values(),
+        key=lambda item: item["last_seen_at"],
+        reverse=True,
+    )
+
+
+def current_admin(request: Request) -> bool:
+    admin_password = os.getenv("ADMIN_PASSWORD")
+    if not admin_password:
+        raise HTTPException(
+            status_code=503,
+            detail="admin 비밀번호가 설정되지 않았습니다.",
+        )
+
+    provided_password = request.headers.get("X-YeonsuBot-Admin-Password")
+    if not provided_password or not secrets.compare_digest(
+        provided_password,
+        admin_password,
+    ):
+        raise HTTPException(status_code=401, detail="admin 인증이 필요합니다.")
+
+    return True
 
 
 def current_user(

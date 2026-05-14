@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>YeonsuBot Admin</title>
+<style>
+  :root {
+    --bg: #f5f5f7;
+    --panel: #ffffff;
+    --text: #1d1d1f;
+    --text-secondary: rgba(0, 0, 0, 0.72);
+    --text-tertiary: rgba(0, 0, 0, 0.48);
+    --accent: #0071e3;
+    --green: #34c759;
+    --red: #ff3b30;
+    --nav-bg: rgba(0, 0, 0, 0.8);
+    --hairline: rgba(0, 0, 0, 0.08);
+    --input-bg: #fafafc;
+    --radius: 8px;
+    --font-sans: "SF Pro Text", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  [hidden] { display: none !important; }
+
+  .nav {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    height: 48px;
+    padding: 0 24px;
+    background: var(--nav-bg);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .nav-title {
+    font-size: 17px;
+    font-weight: 600;
+  }
+  .nav-meta {
+    color: rgba(255, 255, 255, 0.64);
+    font-size: 13px;
+  }
+
+  .shell {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 32px 24px;
+  }
+  .login-shell {
+    max-width: 420px;
+    min-height: calc(100vh - 48px);
+    margin: 0 auto;
+    padding: 32px 24px;
+    display: flex;
+    align-items: center;
+  }
+  .panel {
+    width: 100%;
+    background: var(--panel);
+    border-radius: 8px;
+    padding: 28px;
+  }
+  h1 {
+    margin: 0;
+    font-size: 28px;
+    line-height: 1.14;
+    font-weight: 700;
+  }
+  h2 {
+    margin: 0 0 24px;
+    font-size: 21px;
+    line-height: 1.2;
+    font-weight: 600;
+  }
+  p {
+    margin: 8px 0 0;
+    color: var(--text-secondary);
+  }
+
+  form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  label {
+    color: var(--text-secondary);
+    font-size: 14px;
+    font-weight: 600;
+  }
+  input {
+    width: 100%;
+    min-height: 46px;
+    border: 1px solid var(--hairline);
+    border-radius: 8px;
+    background: var(--input-bg);
+    color: var(--text);
+    font: inherit;
+    padding: 10px 12px;
+  }
+  input:focus {
+    border-color: var(--accent);
+    outline: 2px solid rgba(0, 113, 227, 0.18);
+  }
+  button {
+    min-height: 42px;
+    border: 0;
+    border-radius: 8px;
+    background: var(--accent);
+    color: #fff;
+    cursor: pointer;
+    font: inherit;
+    font-weight: 600;
+    padding: 10px 16px;
+  }
+  button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  button:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+  .btn-secondary {
+    background: var(--input-bg);
+    color: var(--text);
+    border: 1px solid var(--hairline);
+  }
+  .error {
+    min-height: 20px;
+    color: var(--red);
+    font-size: 14px;
+  }
+
+  .toolbar {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+  .toolbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .updated-at {
+    color: var(--text-tertiary);
+    font-size: 13px;
+    white-space: nowrap;
+  }
+
+  .table-wrap {
+    overflow-x: auto;
+    background: var(--panel);
+    border-radius: 8px;
+  }
+  table {
+    width: 100%;
+    min-width: 940px;
+    border-collapse: collapse;
+  }
+  th, td {
+    border-bottom: 1px solid var(--hairline);
+    padding: 14px 16px;
+    text-align: left;
+    white-space: nowrap;
+  }
+  th {
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 600;
+    background: #fbfbfd;
+  }
+  td {
+    color: var(--text);
+    font-size: 14px;
+  }
+  tr:last-child td {
+    border-bottom: 0;
+  }
+  .empty {
+    padding: 32px;
+    color: var(--text-secondary);
+    text-align: center;
+  }
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    min-height: 26px;
+    border-radius: 8px;
+    padding: 4px 9px;
+    background: var(--input-bg);
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .pill.running {
+    background: rgba(52, 199, 89, 0.14);
+    color: #167a32;
+  }
+  .pill.stopped {
+    background: rgba(0, 0, 0, 0.06);
+  }
+
+  @media (max-width: 720px) {
+    .nav { padding: 0 16px; }
+    .nav-meta { display: none; }
+    .shell, .login-shell { padding: 24px 16px; }
+    .panel { padding: 22px; }
+    .toolbar {
+      align-items: stretch;
+      flex-direction: column;
+    }
+    .toolbar-actions {
+      justify-content: space-between;
+    }
+    .toolbar-actions button {
+      flex: 1;
+    }
+  }
+</style>
+</head>
+<body>
+  <nav class="nav">
+    <div class="nav-title">YeonsuBot Admin</div>
+    <div class="nav-meta">읽기 전용 현황판</div>
+  </nav>
+
+  <main id="loginView" class="login-shell">
+    <section class="panel">
+      <h2>Admin 인증</h2>
+      <form id="loginForm">
+        <label for="adminPassword">Admin 비밀번호</label>
+        <input id="adminPassword" name="adminPassword" type="password" autocomplete="current-password" required>
+        <button id="loginButton" type="submit">확인</button>
+        <div id="loginError" class="error" role="alert"></div>
+      </form>
+    </section>
+  </main>
+
+  <main id="dashboardView" class="shell" hidden>
+    <section>
+      <div class="toolbar">
+        <div>
+          <h1>세션 현황</h1>
+          <p>현재 로그인 세션과 실행 상태</p>
+        </div>
+        <div class="toolbar-actions">
+          <span id="updatedAt" class="updated-at">-</span>
+          <button id="refreshButton" class="btn-secondary" type="button">새로고침</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>계정</th>
+              <th>세션 수</th>
+              <th>최초 로그인</th>
+              <th>마지막 활동</th>
+              <th>실행 여부</th>
+              <th>현재 상태</th>
+              <th>마지막 체크</th>
+              <th>연결 창 수</th>
+            </tr>
+          </thead>
+          <tbody id="sessionsBody"></tbody>
+        </table>
+        <div id="emptyState" class="empty" hidden>표시할 세션이 없습니다.</div>
+      </div>
+    </section>
+  </main>
+
+<script>
+(() => {
+  const loginView = document.getElementById("loginView");
+  const dashboardView = document.getElementById("dashboardView");
+  const loginForm = document.getElementById("loginForm");
+  const passwordInput = document.getElementById("adminPassword");
+  const loginButton = document.getElementById("loginButton");
+  const loginError = document.getElementById("loginError");
+  const refreshButton = document.getElementById("refreshButton");
+  const sessionsBody = document.getElementById("sessionsBody");
+  const emptyState = document.getElementById("emptyState");
+  const updatedAt = document.getElementById("updatedAt");
+
+  let adminPassword = "";
+  let refreshTimer = null;
+
+  function cell(value) {
+    const td = document.createElement("td");
+    td.textContent = value || "-";
+    return td;
+  }
+
+  function renderRows(sessions) {
+    sessionsBody.replaceChildren();
+    emptyState.hidden = sessions.length > 0;
+
+    for (const session of sessions) {
+      const tr = document.createElement("tr");
+      tr.appendChild(cell(session.username));
+      tr.appendChild(cell(String(session.session_count)));
+      tr.appendChild(cell(session.first_created_at));
+      tr.appendChild(cell(session.last_seen_at));
+
+      const runningCell = document.createElement("td");
+      const pill = document.createElement("span");
+      pill.className = `pill ${session.running ? "running" : "stopped"}`;
+      pill.textContent = session.running ? "실행 중" : "중지";
+      runningCell.appendChild(pill);
+      tr.appendChild(runningCell);
+
+      tr.appendChild(cell(session.status));
+      tr.appendChild(cell(session.last_check_at));
+      tr.appendChild(cell(String(session.ws_client_count)));
+      sessionsBody.appendChild(tr);
+    }
+  }
+
+  async function fetchSessions() {
+    const response = await fetch("/api/admin/sessions", {
+      headers: {
+        "X-YeonsuBot-Admin-Password": adminPassword,
+      },
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.detail || "admin 인증에 실패했습니다.");
+    }
+    return data.sessions || [];
+  }
+
+  async function refreshSessions() {
+    refreshButton.disabled = true;
+    try {
+      const sessions = await fetchSessions();
+      renderRows(sessions);
+      updatedAt.textContent = `갱신 ${new Date().toLocaleTimeString("ko-KR", { hour12: false })}`;
+    } catch (error) {
+      loginError.textContent = error.message;
+      dashboardView.hidden = true;
+      loginView.hidden = false;
+      if (refreshTimer) {
+        clearInterval(refreshTimer);
+        refreshTimer = null;
+      }
+    } finally {
+      refreshButton.disabled = false;
+    }
+  }
+
+  loginForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    loginError.textContent = "";
+    loginButton.disabled = true;
+    adminPassword = passwordInput.value;
+
+    try {
+      const sessions = await fetchSessions();
+      renderRows(sessions);
+      passwordInput.value = "";
+      loginView.hidden = true;
+      dashboardView.hidden = false;
+      updatedAt.textContent = `갱신 ${new Date().toLocaleTimeString("ko-KR", { hour12: false })}`;
+      if (refreshTimer) {
+        clearInterval(refreshTimer);
+      }
+      refreshTimer = setInterval(refreshSessions, 10000);
+    } catch (error) {
+      adminPassword = "";
+      loginError.textContent = error.message;
+    } finally {
+      loginButton.disabled = false;
+    }
+  });
+
+  refreshButton.addEventListener("click", refreshSessions);
+})();
+</script>
+</body>
+</html>

@@ -8,6 +8,9 @@ services:
       - "3000:3000"
     volumes:
       - ./data:/data
+    env_file:
+      - path: .env
+        required: false
     environment:
       - SETTINGS_DIR=/data
       - HOST=0.0.0.0

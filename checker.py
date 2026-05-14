@@ -913,6 +913,7 @@ def date_range(start: str, end: str) -> list[str]:
     while current <= end_dt:
         dates.append(current.strftime("%Y%m%d"))
         current += timedelta(days=1)
+    return dates
 
 
 if __name__ == "__main__":

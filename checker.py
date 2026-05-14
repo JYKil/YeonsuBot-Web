@@ -447,16 +447,17 @@ class BrowserSession:
                     pass
 
     def book(self, yeonsu_gbn: str, target_dates: list[str],
-             stop_event=None) -> bool:
+             stop_event=None, dry_run: bool = False) -> bool:
         """지정된 날짜 범위의 객실을 예약한다.
 
         Args:
             yeonsu_gbn: 연수원 코드
             target_dates: 예약할 날짜 목록 (YYYYMMDD). 첫 번째=체크인, 마지막+1일=체크아웃
             stop_event: 중지 신호 (threading.Event). 설정 시 예약 중단.
+            dry_run: True이면 객실 목록 진입 직전까지만 실행하고 실제 예약은 건너뜀.
 
         Returns:
-            예약 성공 여부
+            예약 성공 여부 (dry_run=True이면 플로우 성공 시 True 반환)
         """
         if not self.is_alive:
             raise BookingError("브라우저 세션이 활성화되지 않음")
@@ -588,6 +589,11 @@ class BrowserSession:
 
             # 3단계: "선택일로 예약하기" 버튼 클릭 → POST /onlineRsv/list 이동
             # search() 직접 호출 시 사이트 오류 페이지 반환 — 실제 버튼 클릭으로 이벤트 체인 실행
+            if dry_run:
+                logger.info("[dry-run] 객실 목록 진입 직전까지 성공 (체크인=%s, 체크아웃=%s) — 실제 예약 건너뜀",
+                            checkin_date, checkout_date)
+                return True
+
             logger.info("[예약] 선택일로 예약하기 클릭...")
             btn = page.locator(
                 'button:has-text("선택일로 예약하기"), '
@@ -907,4 +913,41 @@ def date_range(start: str, end: str) -> list[str]:
     while current <= end_dt:
         dates.append(current.strftime("%Y%m%d"))
         current += timedelta(days=1)
+
+
+if __name__ == "__main__":
+    import argparse
+    import sys
+
+    parser = argparse.ArgumentParser(description="YeonsuBot 예약 플로우 dry-run")
+    parser.add_argument("--facility", required=True, help="연수원 이름 (예: 서천연수원)")
+    parser.add_argument("--date", required=True, help="체크인 날짜 YYYYMMDD (예: 20260526)")
+    parser.add_argument("--username", default=os.getenv("BOT_USERNAME"), help="로그인 아이디")
+    parser.add_argument("--password", default=os.getenv("BOT_PASSWORD"), help="로그인 비밀번호")
+    args = parser.parse_args()
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+                        datefmt="%H:%M:%S")
+
+    from facilities import FACILITIES
+    code = FACILITIES.get(args.facility)
+    if not code:
+        print(f"알 수 없는 연수원: {args.facility}\n사용 가능: {list(FACILITIES.keys())}")
+        sys.exit(1)
+
+    if not args.username or not args.password:
+        print("--username / --password 또는 BOT_USERNAME / BOT_PASSWORD 환경변수 필요")
+        sys.exit(1)
+
+    session = BrowserSession(args.username, args.password)
+    try:
+        session.start()
+        result = session.book(code, [args.date], dry_run=True)
+        print("dry-run 결과:", "성공" if result else "실패")
+        sys.exit(0 if result else 1)
+    except Exception as e:
+        print(f"dry-run 실패: {e}")
+        sys.exit(1)
+    finally:
+        session.stop()
     return dates

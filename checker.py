@@ -22,7 +22,7 @@ def _random_delay(page, base_ms: int = 2000, jitter_ms: int = 1000):
 
 BASE_URL = "https://yeonsu.eseoul.go.kr"
 LOGIN_URL = f"{BASE_URL}/loginProcAjax"
-ONLINE_RSV_URL = f"{BASE_URL}/onlineRsv/list"
+RESERVATION_ENTRY_URL = f"{BASE_URL}/main"
 
 # 브라우저 재시작 주기 (메모리 누수 방지)
 MAX_CHECKS_BEFORE_RESTART = 50
@@ -89,6 +89,79 @@ def _detect_browser_channel() -> str | None:
 
     logger.debug("시스템 브라우저 미발견, Playwright 내장 Chromium으로 폴백")
     return None
+
+
+def _is_site_error_page(page) -> bool:
+    """사이트 공통 오류 페이지 여부."""
+    try:
+        body_text = page.inner_text("body", timeout=1000)
+    except Exception:
+        return False
+    return "프로그램 오류가 발생하였습니다" in body_text
+
+
+def _select_facility(page, yeonsu_gbn: str):
+    """메인 예약 위젯에서 연수원을 선택한다."""
+    page.wait_for_selector("#ser_yeonsu_gbn", state="attached", timeout=10000)
+
+    item = page.locator(f'#ser_yeonsu_gbn_ul li[value="{yeonsu_gbn}"]').first
+    if item.count() > 0:
+        item.click()
+    else:
+        page.evaluate(
+            """(code) => {
+                const hidden = document.getElementById('ser_yeonsu_gbn');
+                if (hidden) hidden.value = code;
+                if (typeof rsv_day_init === 'function') rsv_day_init();
+            }""",
+            yeonsu_gbn,
+        )
+
+    try:
+        page.wait_for_function(
+            "(code) => document.getElementById('ser_yeonsu_gbn')?.value === code",
+            arg=yeonsu_gbn,
+            timeout=5000,
+        )
+    except PlaywrightTimeout:
+        actual = page.evaluate("document.getElementById('ser_yeonsu_gbn')?.value || null")
+        logger.warning("연수원 선택값 확인 실패 (기대: %s, 실제: %s)", yeonsu_gbn, actual)
+
+
+def _ensure_calendar_ready(page, target_dates: list[str]):
+    """달력 DOM이 로드되고 대상 날짜가 나타날 때까지 대기한다."""
+    try:
+        page.wait_for_function("typeof rsv_day_init === 'function'", timeout=5000)
+    except PlaywrightTimeout:
+        logger.warning("rsv_day_init 대기 타임아웃, 기존 달력 DOM 확인")
+
+    try:
+        page.wait_for_selector('td.targetDate[data-date]', state='attached', timeout=10000)
+    except PlaywrightTimeout:
+        logger.warning("달력 요소 대기 타임아웃, 달력 초기화 재시도")
+        try:
+            page.evaluate("typeof rsv_day_init === 'function' && rsv_day_init()")
+            page.wait_for_selector('td.targetDate[data-date]', state='attached', timeout=10000)
+        except PlaywrightTimeout:
+            if _is_site_error_page(page):
+                logger.warning("예약 사이트 오류 페이지 감지: /main 예약 위젯을 로드하지 못함")
+            else:
+                logger.warning("달력 요소를 찾을 수 없음")
+        except Exception as exc:
+            logger.warning("달력 초기화 중 페이지 전환 감지: %s", exc)
+
+    if not target_dates:
+        return
+
+    target_fmt = f"{target_dates[0][:4]}.{target_dates[0][4:6]}.{target_dates[0][6:]}"
+    try:
+        page.wait_for_selector(
+            f'td.targetDate[data-date="{target_fmt}"]',
+            state='attached',
+            timeout=10000,
+        )
+    except PlaywrightTimeout:
+        logger.warning("대상 날짜 %s 달력 요소 대기 타임아웃", target_dates[0])
 
 
 # JS: 달력에서 예약 가능 날짜 읽기
@@ -173,14 +246,37 @@ class BrowserSession:
         from facilities import FACILITIES, update_facility_codes, CODE_TO_NAME
         page = self._context.new_page()
         try:
-            page.goto(ONLINE_RSV_URL, wait_until="domcontentloaded", timeout=15000)
-            options = page.evaluate("""() => {
+            page.goto(RESERVATION_ENTRY_URL, wait_until="domcontentloaded", timeout=15000)
+            page.wait_for_selector("#ser_yeonsu_gbn", state="attached", timeout=15000)
+
+            options = []
+            for attempt in range(2):
+                try:
+                    options = page.evaluate("""() => {
+                const listItems = Array.from(
+                    document.querySelectorAll('#ser_yeonsu_gbn_ul li[value]')
+                );
+                if (listItems.length > 0) {
+                    return listItems
+                        .map(li => ({
+                            value: li.getAttribute('value'),
+                            text: li.innerText.trim(),
+                        }))
+                        .filter(o => o.value && o.text);
+                }
+
                 const sel = document.getElementById('ser_yeonsu_gbn');
-                if (!sel) return [];
+                if (!sel || !sel.options) return [];
                 return Array.from(sel.options)
                     .filter(o => o.value && o.value !== '0')
                     .map(o => ({value: o.value, text: o.text.trim()}));
-            }""")
+                    }""")
+                    break
+                except Exception:
+                    if attempt == 1:
+                        raise
+                    page.wait_for_load_state("domcontentloaded", timeout=5000)
+
             parsed = {o['text']: o['value'] for o in options if o['text']}
             if parsed:
                 update_facility_codes(parsed)
@@ -265,7 +361,7 @@ class BrowserSession:
 
             page.on("dialog", handle_dialog)
 
-            url = f"{ONLINE_RSV_URL}?ser_yeonsu_gbn={yeonsu_gbn}"
+            url = RESERVATION_ENTRY_URL
 
             # goto 타임아웃 시 1회 재시도 (연속 요청 시 사이트 응답 지연 대응)
             try:
@@ -291,55 +387,16 @@ class BrowserSession:
                     logger.error("재로그인 후에도 세션 만료")
                     return None
 
-            # 연수원 선택 — URL 파라미터로 렌더링되지만 서버 세션은 change 이벤트로 갱신
-            # sel.value = code만으로는 onchange 핸들러가 실행되지 않아 서버 세션 미갱신됨
             facility_name = get_facility_name(yeonsu_gbn)
-            page.evaluate(
-                """(code) => {
-                    const sel = document.getElementById('ser_yeonsu_gbn');
-                    if (sel) {
-                        sel.value = code;
-                        // change 이벤트 dispatch → onchange 핸들러 실행 → 서버 세션 갱신
-                        sel.dispatchEvent(new Event('change', {bubbles: true}));
-                    }
-                }""",
-                yeonsu_gbn,
-            )
-            # change 이벤트로 유발된 AJAX 안정화 대기
-            try:
-                page.wait_for_load_state('networkidle', timeout=5000)
-            except PlaywrightTimeout:
-                pass
+            _select_facility(page, yeonsu_gbn)
             actual_gbn = page.evaluate("document.getElementById('ser_yeonsu_gbn')?.value")
             logger.info("연수원 '%s' 선택 (코드: %s, 실제 select 값: %s)", facility_name, yeonsu_gbn, actual_gbn)
             _random_delay(page, 1000, 500)
 
             # 달력 읽기
             logger.info("달력 검색 중...")
+            _ensure_calendar_ready(page, target_dates)
 
-            try:
-                page.wait_for_function("typeof showCalendar === 'function'", timeout=5000)
-                page.evaluate("showCalendar()")
-            except PlaywrightTimeout:
-                logger.warning("showCalendar 대기 타임아웃, 달력이 이미 로드되었는지 확인")
-
-            # 달력 요소가 DOM에 나타날 때까지 대기
-            try:
-                page.wait_for_selector('td.targetDate[data-date]', state='attached', timeout=10000)
-            except PlaywrightTimeout:
-                logger.warning("달력 요소 대기 타임아웃, 대체 셀렉터 시도")
-                try:
-                    page.wait_for_selector('td[data-date]', state='attached', timeout=5000)
-                except PlaywrightTimeout:
-                    logger.warning("달력 요소를 찾을 수 없음")
-            # 대상 날짜의 td 요소가 DOM에 나타날 때까지 대기 (다음 달 로딩 지연 대응)
-            target_fmt = f"{target_dates[0][:4]}.{target_dates[0][4:6]}.{target_dates[0][6:]}"
-            try:
-                page.wait_for_selector(
-                    f'td.targetDate[data-date="{target_fmt}"]',
-                    state='attached', timeout=10000)
-            except PlaywrightTimeout:
-                logger.warning("대상 날짜 %s 달력 요소 대기 타임아웃", target_dates[0])
             # 클릭 가능 요소 대기 (onclick 핸들러 또는 enabled 버튼)
             try:
                 page.wait_for_selector(
@@ -415,7 +472,7 @@ class BrowserSession:
         page = None
         try:
             page = self._context.new_page()
-            url = f"{ONLINE_RSV_URL}?ser_yeonsu_gbn={yeonsu_gbn}"
+            url = RESERVATION_ENTRY_URL
             page.goto(url, wait_until="domcontentloaded", timeout=30000)
 
             # RESAGREE 쿠키 설정 (예약안내 팝업 건너뛰기, 1차 방어)
@@ -460,25 +517,8 @@ class BrowserSession:
 
             page.on("dialog", handle_dialog)
 
-            # 1단계: 연수원 선택 — URL 파라미터로 렌더링되지만 서버 세션은 change 이벤트로 갱신
-            # sel.value = code만으로는 onchange 핸들러가 실행되지 않아 서버 세션 미갱신됨
             facility_name = get_facility_name(yeonsu_gbn)
-            page.evaluate(
-                """(code) => {
-                    const sel = document.getElementById('ser_yeonsu_gbn');
-                    if (sel) {
-                        sel.value = code;
-                        // change 이벤트 dispatch → onchange 핸들러 실행 → 서버 세션 갱신
-                        sel.dispatchEvent(new Event('change', {bubbles: true}));
-                    }
-                }""",
-                yeonsu_gbn,
-            )
-            # change 이벤트로 유발된 AJAX 안정화 대기
-            try:
-                page.wait_for_load_state('networkidle', timeout=5000)
-            except PlaywrightTimeout:
-                pass
+            _select_facility(page, yeonsu_gbn)
             actual_gbn = page.evaluate("document.getElementById('ser_yeonsu_gbn')?.value")
             logger.info("[예약] 연수원 '%s' 선택 (코드: %s, 실제 select 값: %s)", facility_name, yeonsu_gbn, actual_gbn)
             _random_delay(page, 1000, 500)
@@ -487,11 +527,7 @@ class BrowserSession:
                 raise BookingError("중지 요청됨")
 
             # 2단계: 달력 표시 후 체크인 날짜 클릭
-            page.evaluate("showCalendar()")
-            try:
-                page.wait_for_selector('td.targetDate[data-date]', state='attached', timeout=10000)
-            except PlaywrightTimeout:
-                logger.warning("[예약] 달력 요소 대기 타임아웃")
+            _ensure_calendar_ready(page, [checkin_date])
             _random_delay(page, 1000, 500)
 
             # JS evaluate로 날짜 선택 (onclick 직접 호출 — visible 불필요)
@@ -550,21 +586,21 @@ class BrowserSession:
             logger.info("[예약] 날짜 필드 동기화: 체크인=%s, 체크아웃=%s",
                         actual['ci'], actual['co'])
 
-            # 3단계: "선택일로 예약하기" — URL 이동 후 search() 호출
-            # URL 파라미터만으로는 객실 목록이 자동 로드되지 않으므로
-            # 폼 필드 설정 후 search()를 명시적으로 호출해야 함
+            # 3단계: "선택일로 예약하기" — 메인 폼 search()가 POST로 객실 목록 이동
             logger.info("[예약] 선택일로 예약하기 클릭...")
-            list_url = (
-                f"https://yeonsu.eseoul.go.kr/onlineRsv/list"
-                f"?ser_yeonsu_gbn={yeonsu_gbn}"
-                f"&check_in_day={checkin_date}"
-                f"&check_out_day={checkout_date}"
-            )
-            page.goto(list_url, wait_until="domcontentloaded", timeout=15000)
+            try:
+                with page.expect_navigation(wait_until="domcontentloaded", timeout=15000):
+                    page.evaluate("search()")
+            except PlaywrightTimeout:
+                logger.warning("[예약] search() POST 이동 대기 타임아웃")
+
             try:
                 page.wait_for_load_state('networkidle', timeout=10000)
             except PlaywrightTimeout:
                 logger.warning("[예약] 객실 목록 네트워크 안정 대기 타임아웃")
+
+            if _is_site_error_page(page):
+                raise BookingError("예약 사이트 객실 목록 오류 페이지 (/onlineRsv/list)")
 
             # networkidle 타임아웃 후에도 폼 요소가 DOM에 없을 수 있으므로
             # #check_in_day 요소가 실제로 붙을 때까지 대기

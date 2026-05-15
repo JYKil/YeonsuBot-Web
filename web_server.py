@@ -44,6 +44,7 @@ class SessionContext:
         self.current_status: str = "중지"
         self.last_check_at: str | None = None
         self.last_result: dict | None = None  # {"result": "SUCCESS"|"FAILED"|..., "detail": ...}
+        self.monitoring_started_at: datetime | None = None
         self.loop: asyncio.AbstractEventLoop | None = None
 
         # scheduler 콜백 연결
@@ -57,11 +58,17 @@ class SessionContext:
 
     def _on_status_change(self, status: str) -> None:
         self.current_status = status
+        if status == "모니터링 중" and self.scheduler.is_running and self.monitoring_started_at is None:
+            self.monitoring_started_at = datetime.now(_KST)
+        elif status in {"중지", "중지됨"}:
+            self.monitoring_started_at = None
         self._broadcast({"type": "status", "status": status, "last_check_at": self.last_check_at})
 
     def _on_booking_result(self, result: BookingResult, detail: str) -> None:
         payload = {"result": result.name, "detail": detail}
         self.last_result = payload
+        if result in {BookingResult.SUCCESS, BookingResult.LOGIN_ERROR, BookingResult.BROWSER_ERROR}:
+            self.monitoring_started_at = None
         self._broadcast({"type": "result", **payload})
 
     def _on_error(self, error: Exception) -> None:
@@ -300,19 +307,28 @@ async def api_admin_sessions(_: bool = Depends(auth.current_admin)) -> JSONRespo
     for username in usernames:
         session = sessions_by_user.get(username)
         ctx = contexts.get(username)
+        running = ctx.scheduler.is_running if ctx else False
+        monitoring_elapsed_seconds = None
+        if running and ctx and ctx.monitoring_started_at:
+            monitoring_elapsed_seconds = int((datetime.now(_KST) - ctx.monitoring_started_at).total_seconds())
+
         rows.append({
             "username": username,
             "session_count": session["session_count"] if session else 0,
             "first_created_at": _format_kst_datetime(session["first_created_at"] if session else None),
+            "latest_login_at": _format_kst_datetime(session["latest_created_at"] if session else None),
             "last_seen_at": _format_kst_datetime(session["last_seen_at"] if session else None),
             "has_context": ctx is not None,
-            "running": ctx.scheduler.is_running if ctx else False,
+            "running": running,
             "status": ctx.current_status if ctx else "중지",
             "last_check_at": ctx.last_check_at if ctx else None,
+            "monitoring_count": ctx.scheduler.cycle_count if ctx else 0,
+            "monitoring_started_at": _format_kst_datetime(ctx.monitoring_started_at if ctx else None),
+            "monitoring_elapsed_seconds": monitoring_elapsed_seconds,
             "ws_client_count": len(ctx.ws_clients) if ctx else 0,
         })
 
-    rows.sort(key=lambda item: item["last_seen_at"] or "", reverse=True)
+    rows.sort(key=lambda item: item["latest_login_at"] or item["last_seen_at"] or "", reverse=True)
     return JSONResponse({"sessions": rows})
 
 
@@ -451,6 +467,7 @@ async def api_start(request: Request, user: str = Depends(auth.current_user)) ->
 
     ctx.last_result = None
     ctx.last_check_at = None
+    ctx.monitoring_started_at = None
 
     # 새 세션 시작 — 기존 로그 초기화
     ctx.log_buffer.clear()
@@ -472,6 +489,7 @@ async def api_stop(user: str = Depends(auth.current_user)) -> JSONResponse:
     ctx = registry.get_or_create(user)
     ctx.scheduler.stop()
     ctx.current_status = "중지"
+    ctx.monitoring_started_at = None
     return JSONResponse(_status_payload(ctx))
 
 

@@ -88,6 +88,7 @@ def admin_session_snapshot() -> list[dict]:
                 "username": session.username,
                 "session_count": 1,
                 "first_created_at": session.created_at,
+                "latest_created_at": session.created_at,
                 "last_seen_at": session.last_seen_at,
             }
             continue
@@ -95,6 +96,8 @@ def admin_session_snapshot() -> list[dict]:
         item["session_count"] += 1
         if session.created_at < item["first_created_at"]:
             item["first_created_at"] = session.created_at
+        if session.created_at > item["latest_created_at"]:
+            item["latest_created_at"] = session.created_at
         if session.last_seen_at > item["last_seen_at"]:
             item["last_seen_at"] = session.last_seen_at
 

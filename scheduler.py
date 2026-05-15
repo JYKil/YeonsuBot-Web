@@ -48,6 +48,10 @@ class MonitorScheduler:
   def is_running(self) -> bool:
     return self._running
 
+  @property
+  def cycle_count(self) -> int:
+    return self._cycle_count
+
   def start(self, interval_seconds: int, yeonsu_gbn: str, target_dates: list[str],
             username: str, password: str, log_username: str | None = None):
     """모니터링 시작."""

@@ -171,7 +171,7 @@
   }
   table {
     width: 100%;
-    min-width: 940px;
+    min-width: 720px;
     border-collapse: collapse;
   }
   th, td {
@@ -270,13 +270,10 @@
           <thead>
             <tr>
               <th>계정</th>
-              <th>세션 수</th>
-              <th>최초 로그인</th>
-              <th>마지막 활동</th>
+              <th>최근 로그인</th>
               <th>실행 여부</th>
               <th>현재 상태</th>
-              <th>마지막 체크</th>
-              <th>연결 창 수</th>
+              <th>모니터링 횟수</th>
             </tr>
           </thead>
           <tbody id="sessionsBody"></tbody>
@@ -315,9 +312,7 @@
     for (const session of sessions) {
       const tr = document.createElement("tr");
       tr.appendChild(cell(session.username));
-      tr.appendChild(cell(String(session.session_count)));
-      tr.appendChild(cell(session.first_created_at));
-      tr.appendChild(cell(session.last_seen_at));
+      tr.appendChild(cell(session.latest_login_at));
 
       const runningCell = document.createElement("td");
       const pill = document.createElement("span");
@@ -327,8 +322,8 @@
       tr.appendChild(runningCell);
 
       tr.appendChild(cell(session.status));
-      tr.appendChild(cell(session.last_check_at));
-      tr.appendChild(cell(String(session.ws_client_count)));
+      const count = Number(session.monitoring_count || 0);
+      tr.appendChild(cell(session.running && count > 0 ? `${count}회` : "-"));
       sessionsBody.appendChild(tr);
     }
   }

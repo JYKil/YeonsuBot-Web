@@ -127,12 +127,12 @@ Admin API는 `ctx.scheduler.cycle_count`를 `monitoring_count`로 반환한다.
 정의:
 - START 직후 첫 체크가 시작되면 1
 - 체크 실패도 "확인 시도"로 보아 1회에 포함
-- STOP 후 값은 마지막 실행의 누적 횟수로 남길지, 0으로 보일지 정책 결정 필요
+- STOP 또는 예약 성공 후 값은 0으로 초기화
 
 권장 정책:
 - 실행 중이면 현재 누적 횟수 표시
-- 중지 상태면 `-` 표시
-- 예약 성공이나 사용자가 STOP한 뒤 과거 횟수는 API에는 남겨도 UI 기본 표에서는 숨김
+- 중지 상태면 API 값은 0, UI는 `-` 표시
+- 예약 성공이나 사용자가 STOP한 뒤 과거 횟수는 남기지 않음
 
 ### 모니터링 시간
 
@@ -335,7 +335,7 @@ if cycle_count > 0 and cycle_count % 100 == 0:
 |------|--------|
 | 기본 컬럼명 | `모니터링 횟수` |
 | 시간 표시 | 1차 구현에서는 숨김, API 필드만 준비 |
-| 중지 상태 횟수 | UI에서는 `-` |
+| 중지 상태 횟수 | API는 `0`, UI는 `-` |
 | 체크 실패 횟수 포함 | 포함 |
 | 기존 debug 필드 제거 | 제거하지 않고 응답에 유지 |
 
@@ -439,6 +439,8 @@ Current state:
 - start() resets self._cycle_count to 0.
 - _do_check_and_book() 진입 시 self._cycle_count += 1 로 증가함
 - _do_check_and_book() increments self._cycle_count by 1 when it starts.
+- stop() 또는 예약 성공 시 self._cycle_count는 0으로 초기화되어야 함
+- stop() or booking success should reset self._cycle_count to 0.
 
 구현할 내용:
 Implementation tasks:
@@ -449,10 +451,12 @@ Implementation tasks:
    def cycle_count(self) -> int:
        return self._cycle_count
 
-2. _cycle_count 증가 위치와 리셋 동작은 바꾸지 말 것
-2. Do not change where _cycle_count increments or how it resets.
-3. stop(), start(), _worker_loop()의 기존 동작은 바꾸지 말 것
-3. Do not change the existing behavior of stop(), start(), or _worker_loop().
+2. _cycle_count 증가 위치는 바꾸지 말 것
+2. Do not change where _cycle_count increments.
+3. start(), stop(), 예약 성공 경로의 리셋 정책을 유지할 것
+3. Keep the reset policy for start(), stop(), and booking success paths.
+4. _worker_loop()의 기존 동작은 바꾸지 말 것
+4. Do not change the existing behavior of _worker_loop().
 
 주의:
 Notes:
@@ -465,6 +469,7 @@ Notes:
 **완료 기준:**
 - `ctx.scheduler.cycle_count`로 현재 카운트를 읽을 수 있다.
 - START 시 0으로 리셋되고 첫 체크 진입 시 1이 된다.
+- STOP 또는 예약 성공 후 0으로 리셋된다.
 
 ---
 

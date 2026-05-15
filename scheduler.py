@@ -90,6 +90,7 @@ class MonitorScheduler:
   def stop(self):
     """모니터링 중지."""
     self._running = False
+    self._cycle_count = 0
     if self._stop_event:
       self._stop_event.set()
     logger.info("스케줄러 중지")
@@ -194,6 +195,7 @@ class MonitorScheduler:
           # UI 버튼 즉시 토글을 위해 _running 선반영 (finally에서 session.stop()이
           # 브라우저 정리하는 동안 UI가 STOP 상태로 남지 않도록)
           self._running = False
+          self._cycle_count = 0
           self._notify_status("중지됨")
           self._notify_booking_result(BookingResult.SUCCESS, self._target_dates[0])
           stop_event.set()  # 예약 성공 시 루프 종료

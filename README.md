@@ -24,12 +24,12 @@
 
 ## 배포 주소
 
-- **LAN**: http://192.168.75.205:3000
-- **외부**: http://kilga-server.duckdns.org:3000
+- **앱**: http://kilga-server.duckdns.org:3000
+- **Admin**: http://kilga-server.duckdns.org:3000/admin
 
 ## 사용 방법
 
-1. 브라우저에서 위 주소 접속 (또는 `http://<서버IP>:3000`)
+1. 브라우저에서 http://kilga-server.duckdns.org:3000 접속
 2. 연수원 사이트 아이디/비밀번호로 로그인 (최초 로그인 시 연수원 사이트 인증 포함, 5~10초 소요)
 3. 연수원, 체크인/체크아웃, 확인 간격 선택
 4. **START** 버튼 클릭 → 자동 모니터링 + 예약 진행
@@ -39,9 +39,8 @@
 
 ## Admin 현황판
 
-- 접속 경로: `http://<서버IP>:3000/admin`
-- 운영 서버 LAN: http://192.168.75.205:3000/admin
-- 외부: http://kilga-server.duckdns.org:3000/admin
+- 접속 경로: `http://kilga-server.duckdns.org:3000/admin`
+- 운영 URL: http://kilga-server.duckdns.org:3000/admin
 - 인증: `.env`의 `ADMIN_PASSWORD` 값을 입력
 - 표시 정보: 계정명, 최근 로그인, 실행 여부, 현재 상태, 모니터링 횟수
 - 표시하지 않는 정보: 비밀번호, 세션 토큰, 예약 대상 연수원/날짜, 로그 내용
@@ -59,8 +58,8 @@
 
 - Beelink EQR6 (Ubuntu, x86_64)
 - Docker, Docker Compose
-- GitLab (http://192.168.75.205:8929)
-- Jenkins (http://192.168.75.205:8080)
+- GitLab (http://kilga-server.duckdns.org:8929)
+- Jenkins (http://kilga-server.duckdns.org:8080)
 
 ### CI/CD 흐름
 

@@ -9,7 +9,7 @@
 | Phase 2 — FastAPI 백엔드 | ✅ 완료 |
 | Phase 3 — 프론트엔드 | ✅ 완료 |
 | Phase 4 — 패키지 & Docker | ✅ 완료 |
-| Phase 5 — Beelink 배포 (GitLab + Jenkins CI/CD) | ✅ 완료 (http://192.168.75.205:3000 운영 중) |
+| Phase 5 — Beelink 배포 (GitLab + Jenkins CI/CD) | ✅ 완료 (http://kilga-server.duckdns.org:3000 운영 중) |
 | Phase 6 — 로컬 검증 | ✅ 완료 |
 | Phase 7 — 운영 버그 수정 | ✅ 완료 |
 | Phase 8 — 텔레그램 알림 전환 | 🔲 예정 |

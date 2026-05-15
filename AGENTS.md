@@ -47,12 +47,11 @@ ADMIN_PASSWORD=원하는관리자비밀번호 uv run python main.py
 ## 배포 환경
 
 - **서버**: Beelink EQR6 미니 PC, Ubuntu, x86_64
-- **LAN IP**: `192.168.75.205`
-- **외부 도메인**: `kilga-server.duckdns.org` (DuckDNS)
-- **앱 URL (LAN)**: http://192.168.75.205:3000
-- **앱 URL (외부)**: http://kilga-server.duckdns.org:3000
-- **GitLab**: http://192.168.75.205:8929 / http://kilga-server.duckdns.org:8929
-- **Jenkins**: http://192.168.75.205:8080 / http://kilga-server.duckdns.org:8080
+- **운영 도메인**: `kilga-server.duckdns.org` (DuckDNS)
+- **앱 URL**: http://kilga-server.duckdns.org:3000
+- **Admin URL**: http://kilga-server.duckdns.org:3000/admin
+- **GitLab**: http://kilga-server.duckdns.org:8929
+- **Jenkins**: http://kilga-server.duckdns.org:8080
 
 ## 재배포 흐름 (CI/CD)
 
